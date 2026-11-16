@@ -1,0 +1,26 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('internet_soas', function (Blueprint $table) {
+            $table->id();
+            $table->string('store_name', 150);
+            $table->decimal('amount', 12, 2);
+            $table->date('due_date')->index();
+            $table->string('attachment_path');
+            $table->string('attachment_name');
+            $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('internet_soas');
+    }
+};
