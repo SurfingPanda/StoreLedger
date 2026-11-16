@@ -10,8 +10,7 @@
     "noEmit": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "baseUrl": ".",
-    "paths": { "@/*": ["resources/js/*"] },
+    "paths": { "@/*": ["./resources/js/*"] },
     "types": ["vite/client"]
   },
   "include": ["resources/js/**/*.ts", "resources/js/**/*.tsx", "vite.config.ts"]
