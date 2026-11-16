@@ -5,6 +5,7 @@ use App\Http\Controllers\PosRenewalController;
 use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\InternetSoaController;
 use App\Http\Controllers\BillingSoaController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -61,5 +62,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/utak-pos/records/{posRenewal}/payment-proof', [PosRenewalController::class, 'paymentProof'])->name('utak-pos.payment-proof');
     Route::post('/utak-pos/records/{posRenewal}/voucher', [PosRenewalController::class, 'voucherAction'])->name('utak-pos.voucher');
     Route::get('/dashboard', fn (Request $request, AuthController $auth) => $auth->page($request, 'dashboard'))->name('dashboard');
+    Route::get('/dashboard/records', [DashboardController::class, 'index'])->name('dashboard.records');
+    Route::get('/dashboard/activity', [DashboardController::class, 'activity'])->name('dashboard.activity');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
