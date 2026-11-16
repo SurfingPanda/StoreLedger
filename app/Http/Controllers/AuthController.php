@@ -21,6 +21,7 @@ class AuthController extends Controller
         return view('app', ['appData' => [
             'page' => $page,
             'loggedOut' => $page === 'login' && $request->session()->pull('logged_out', false),
+            'renewalId' => $request->route('posRenewal')?->id ?? $request->route('internetSoa')?->id ?? $request->route('billingSoa')?->id,
             'assets' => [
                 'mascot' => asset('images/Full Moymoy 2.png'),
                 'logo' => asset('images/logo.png'),
@@ -39,6 +40,12 @@ class AuthController extends Controller
                 'posRecords' => route('utak-pos.records'),
                 'internetSoa' => route('internet-soa'),
                 'internetSoaRecords' => route('internet-soa.records'),
+                'electricity' => route('electricity'),
+                'electricityRecords' => route('electricity.records'),
+                'rental' => route('rental'),
+                'rentalRecords' => route('rental.records'),
+                'water' => route('water'),
+                'waterRecords' => route('water.records'),
                 'settings' => route('settings'),
                 'notificationSettings' => route('settings.notifications'),
             ],
@@ -67,7 +74,7 @@ class AuthController extends Controller
         RateLimiter::clear($key);
         $request->session()->regenerate();
 
-        return response()->json(['redirect' => $request->session()->pull('url.intended', route($request->user()->role === 'accounting' ? 'utak-pos' : 'dashboard'))]);
+        return response()->json(['redirect' => $request->session()->pull('url.intended', route(in_array($request->user()->role, ['accounting', 'finance'], true) ? 'utak-pos' : 'dashboard'))]);
     }
 
     public function logout(Request $request): JsonResponse

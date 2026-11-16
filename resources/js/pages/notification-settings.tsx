@@ -5,7 +5,7 @@ import { post, RequestError, type AppData } from '@/lib/auth';
 
 type Setting = { event: string; mode: 'role' | 'custom' | 'off'; emails: string[]; role: string; role_emails: string[]; resolved_emails: string[]; text?: string };
 const labels: Record<string, { title: string; detail: string; available: boolean }> = {
-  accounting_voucher: { title: 'Accounting · Voucher reminders', detail: 'UTAK POS renewals awaiting a voucher, starting 15 days before the renewal date.', available: true },
+  accounting_voucher: { title: 'Accounting · Voucher reminders', detail: 'UTAK POS renewals and Internet, Water, Electricity, and Rental SOAs awaiting a voucher, starting 15 days before their due date.', available: true },
   finance_payment: { title: 'Finance · Payment reminders', detail: 'Recipients for payment reminders once the voucher and payment workflow is connected.', available: false },
   rso_voucher_processed: { title: 'RSO · Voucher processed', detail: 'Recipients for an update when Accounting finishes processing a voucher.', available: false },
   rso_payment_processed: { title: 'RSO · Payment processed', detail: 'Recipients for an update when Finance records a completed payment.', available: false },
