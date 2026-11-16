@@ -3,6 +3,7 @@ export type AppData = {
   page: 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'pos-voucher' | 'internet-soa' | 'internet-voucher' | 'electricity' | 'rental' | 'water' | 'water-voucher' | 'electricity-voucher' | 'rental-voucher' | 'settings';
   renewalId?: number;
   email: string;
+  loggedOut?: boolean;
   token: string;
   user: { name: string; email: string; role: string } | null;
   urls: Record<'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'dashboardRecords' | 'dashboardActivity' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'electricity' | 'electricityRecords' | 'rental' | 'rentalRecords' | 'water' | 'waterRecords' | 'settings' | 'notificationSettings', string>;

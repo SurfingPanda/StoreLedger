@@ -1,11 +1,12 @@
-﻿import { useState } from 'react';
-import { ArrowRight, Bell, Building2, ChevronRight, Droplets, LayoutDashboard, LogOut, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Settings, Wifi, ShieldCheck, X, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, Building2, ChevronRight, Droplets, LayoutDashboard, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Settings, Wifi, ShieldCheck, X, Zap } from 'lucide-react';
 import NotificationSettings from '@/pages/notification-settings';
 import PosRenewals from '@/pages/pos-renewals';
 import PosVoucher from '@/pages/pos-voucher';
-import Dashboard, { RecentActivity } from '@/pages/dashboard';
+import Dashboard from '@/pages/dashboard';
+import WorkspaceMenus from '@/components/workspace-menus';
+import { confirmAction, showError } from '@/lib/alerts';
 import { Brand } from '@/components/brand';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { post, type AppData } from '@/lib/auth';
 
 type Module = 'All modules' | 'Rental' | 'Electricity' | 'Water' | 'UTAK POS';
@@ -20,14 +21,21 @@ export default function Workspace({ data }: { data: AppData }) {
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('bw-sidebar-collapsed') === 'true'; } catch { return false; } });
   function toggleSidebar() { setCollapsed(value => { try { localStorage.setItem('bw-sidebar-collapsed', String(!value)); } catch {} return !value; }); }
   const [sidebar, setSidebar] = useState(false);
-  const [notifications, setNotifications] = useState(false);
   const name = data.user?.name.split(' ')[0] || 'User';
   const roleLabel = ({ admin: 'Admin', accounting: 'Accounting', finance: 'Finance', it: 'IT', rso: 'RSO' } as Record<string, string>)[data.user?.role ?? ''] ?? 'Team';
   function navigate(module: Module) { const urls: Record<Module, string> = { 'All modules': data.urls.dashboard, Rental: data.urls.rental, Electricity: data.urls.electricity, Water: data.urls.water, 'UTAK POS': data.urls.pos }; window.location.assign(urls[module]); }
   async function logout() {
-    setBusy(true); setError('');
+    if (busy) return;
+    setBusy(true);
+    const confirmed = await confirmAction('You will be signed out of your workspace.', 'Yes, sign out');
+    if (!confirmed) { setBusy(false); return; }
+    setError('');
     try { const result = await post(data.urls.logout, {}); window.location.assign(result.redirect ?? data.urls.login); }
-    catch { setError('Could not sign you out. Please try again.'); setBusy(false); }
+    catch {
+      setError('Could not sign you out. Please try again.');
+      await showError('Could not sign you out. Please try again.', 'Sign out failed');
+      setBusy(false);
+    }
   }
   return <div className={`admin-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
     {sidebar && <button className="sidebar-shade" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
@@ -43,17 +51,16 @@ export default function Workspace({ data }: { data: AppData }) {
         {data.user?.role === 'admin' && <><p className="nav-caption modules-caption">ADMINISTRATION</p><a href={data.urls.settings} title="Settings" aria-label="Settings" className={`nav-item ${data.page === 'settings' ? 'nav-active' : ''}`} aria-current={data.page === 'settings' ? 'page' : undefined}><Settings size={18} /><span className="nav-label">Settings</span></a></>}
       </nav>
       <div className="sidebar-process"><span className="nav-caption">ONE CONNECTED PROCESS</span><div><span>IT</span><ArrowRight size={12} /><span>Accounting</span></div><div><span>Finance</span><ArrowRight size={12} /><span>RSO</span></div><p>From voucher to payment,<br />everyone stays in the loop.</p></div>
-      <div className="sidebar-account"><span className="account-avatar">{name.slice(0, 1).toUpperCase()}</span><div><strong>{data.user?.name}</strong><small>{roleLabel} workspace</small></div><button aria-label="Sign out" title="Sign out" disabled={busy} onClick={logout}><LogOut size={17} /></button></div>
+      <div className="sidebar-account"><span className="account-avatar">{name.slice(0, 1).toUpperCase()}</span><div><strong>{data.user?.name}</strong><small>{roleLabel} workspace</small></div></div>
     </aside>
 
     <div className="admin-body">
-      <header className="admin-topbar"><div className="breadcrumb"><button className="desktop-sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Minimize sidebar'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Minimize sidebar'}>{collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}</button><button className="mobile-menu" aria-label="Open navigation" onClick={() => setSidebar(true)}><Menu size={21} /></button><span>Workspace</span><ChevronRight size={13} /><strong>{data.page === 'settings' ? 'Settings' : (data.page === 'internet-soa' || data.page === 'internet-voucher') ? 'Internet SOA Monitoring' : active === 'All modules' ? 'Dashboard' : active}</strong></div><div className="topbar-actions"><span className="admin-access"><ShieldCheck size={14} />{roleLabel} access</span><span className="topbar-separator" /><button className="notification-button" aria-label="Open recent activity" onClick={() => setNotifications(true)}><Bell size={19} /></button><span className="topbar-avatar">{name.slice(0, 1).toUpperCase()}</span></div></header>
+      <header className="admin-topbar"><div className="breadcrumb"><button className="desktop-sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Minimize sidebar'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Minimize sidebar'}>{collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}</button><button className="mobile-menu" aria-label="Open navigation" onClick={() => setSidebar(true)}><Menu size={21} /></button><span>Workspace</span><ChevronRight size={13} /><strong>{data.page === 'settings' ? 'Settings' : (data.page === 'internet-soa' || data.page === 'internet-voucher') ? 'Internet SOA Monitoring' : active === 'All modules' ? 'Dashboard' : active}</strong></div><div className="topbar-actions"><span className="admin-access"><ShieldCheck size={14} />{roleLabel} access</span><span className="topbar-separator" /><WorkspaceMenus data={data} roleLabel={roleLabel} busy={busy} logout={logout} /></div></header>
       <main className="admin-content">
         {data.page === 'settings' ? <NotificationSettings data={data} /> : ['pos-voucher', 'internet-voucher', 'water-voucher', 'electricity-voucher', 'rental-voucher'].includes(data.page) ? <PosVoucher key={data.page} data={data} /> : ['utak-pos', 'internet-soa', 'water', 'electricity', 'rental'].includes(data.page) ? <PosRenewals key={data.page} data={data} /> : <Dashboard data={data} />}
         {error && <div className="form-alert" role="alert">{error}</div>}
         <footer className="dashboard-footer"><span>BW Superbakeshop · Rental & renewal management</span><span>One workspace. Every detail accounted for.</span></footer>
       </main>
     </div>
-    <Dialog open={notifications} onOpenChange={setNotifications}><DialogContent className="recent-activity-dialog"><span className="dialog-symbol"><Bell size={21} /></span><DialogTitle className="text-xl font-medium">Recent activity</DialogTitle><DialogDescription>Latest saved requests, voucher actions, and payments across all monitoring modules.</DialogDescription>{notifications && <RecentActivity data={data} />}</DialogContent></Dialog>
   </div>;
 }

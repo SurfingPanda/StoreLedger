@@ -20,6 +20,7 @@ class AuthController extends Controller
     {
         return view('app', ['appData' => [
             'page' => $page,
+            'loggedOut' => $page === 'login' && $request->session()->pull('logged_out', false),
             'renewalId' => $request->route('posRenewal')?->id ?? $request->route('internetSoa')?->id ?? $request->route('billingSoa')?->id,
             'assets' => [
                 'mascot' => asset('images/Full Moymoy 2.png'),
@@ -83,6 +84,7 @@ class AuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+        $request->session()->flash('logged_out', true);
 
         return response()->json(['redirect' => route('login')]);
     }
