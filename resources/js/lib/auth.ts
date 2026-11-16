@@ -2,6 +2,7 @@ export type AppData = {
   assets: { mascot: string; logo: string };
   page: 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'internet-soa' | 'settings';
   email: string;
+  loggedOut?: boolean;
   token: string;
   user: { name: string; email: string; role: string } | null;
   urls: Record<'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'settings' | 'notificationSettings', string>;

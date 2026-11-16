@@ -1,8 +1,25 @@
 *.log
 .DS_Store
 .env
-.env.backup
-.env.production
+.env.*
+!.env.example
+# Local credentials and private keys
+/.aws/
+/.ssh/
+/.npmrc
+/.netrc
+*.pem
+*.key
+*.p12
+*.pfx
+# Local database copies and exports
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.sql
+*.sql.gz
 .phpactor.json
 .phpunit.result.cache
 /.fleet

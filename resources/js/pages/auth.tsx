@@ -1,5 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Check, CircleAlert, CircleHelp, Eye, EyeOff, KeyRound, LoaderCircle, LockKeyhole, Mail } from 'lucide-react';
+import { useEffect } from 'react';
+import { showSuccess, showError } from '@/lib/alerts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -44,6 +46,13 @@ export default function AuthPage({ data }: { data: AppData }) {
   const [success, setSuccess] = useState('');
   const submitting = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const logoutNoticeShown = useRef(false);
+
+  useEffect(() => {
+    if (!login || !data.loggedOut || logoutNoticeShown.current) return;
+    logoutNoticeShown.current = true;
+    void showSuccess('Signed out successfully', 'You have been safely signed out of your workspace.');
+  }, [login, data.loggedOut]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,16 +63,27 @@ export default function AuthPage({ data }: { data: AppData }) {
     try {
       const url = login ? data.urls.login : reset ? data.urls.resetPassword : data.urls.sendResetLink;
       const result = await post(url, { ...values, email: String(values.email ?? '').trim(), remember, ...(reset ? { token: data.token } : {}) });
-      if (result.redirect) { window.location.assign(result.redirect); return; }
+      if (result.redirect) {
+        if (login) {
+          await showSuccess('Signed in successfully', 'Opening your workspace...');
+        }
+        window.location.assign(result.redirect);
+        return;
+      }
       setSuccess(result.message ?? 'Your request has been received.');
+      await showSuccess('Success', result.message ?? 'Your request has been received.');
     } catch (failure) {
       if (failure instanceof RequestError) {
         setErrors(failure.errors);
         if (Object.keys(failure.errors).length === 0) setError(failure.message);
-        requestAnimationFrame(() => formRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus());
       } else {
         setError('We couldn’t connect. Check your connection and try again.');
       }
+      const message = failure instanceof RequestError
+        ? (Object.values(failure.errors).flat().join(' ') || failure.message)
+        : 'We could not connect. Check your connection and try again.';
+      await showError(message, login ? 'Sign in failed' : 'Request failed');
+      requestAnimationFrame(() => formRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus());
     } finally { setBusy(false); submitting.current = false; }
   }
 

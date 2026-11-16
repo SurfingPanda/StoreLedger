@@ -238,3 +238,41 @@
 @media(max-height:680px){.admin-sidebar .workspace-label{display:none}.admin-sidebar .sidebar-brand .bw-logo{width:48px;height:48px}.admin-sidebar .sidebar-brand{padding-block:10px}.admin-sidebar .sidebar-account{padding-block:10px}}
 @media(max-height:440px){.admin-sidebar .sidebar-nav>.nav-caption{display:none}.admin-sidebar .sidebar-nav{gap:2px}.admin-sidebar .sidebar-nav>.nav-item{font-size:11px}.admin-sidebar .sidebar-nav>.nav-item>svg{width:15px;height:15px}.admin-sidebar .sidebar-account{padding-block:5px}.admin-sidebar .sidebar-account small{display:none}.admin-sidebar .sidebar-brand{padding-block:5px}.admin-sidebar .sidebar-brand .bw-logo{width:30px;height:30px}}
 @media(min-width:761px){.sidebar-collapsed .admin-sidebar .sidebar-brand{padding:12px}.sidebar-collapsed .admin-sidebar .sidebar-nav{padding:0 12px 8px}.sidebar-collapsed .admin-sidebar .sidebar-nav>.nav-item{padding:0;justify-content:center;margin:0}.sidebar-collapsed .admin-sidebar .sidebar-account{padding:10px 0;gap:6px}}
+
+/* Header notification and account dropdowns. */
+.workspace-menus{display:flex;align-items:center;gap:16px;position:relative}
+.topbar-menu-anchor{position:relative}
+.workspace-menus button:focus-visible,.workspace-menus a:focus-visible{outline:2px solid #2445cc;outline-offset:3px}
+.workspace-menus .notification-button{border-radius:6px;padding:8px}
+.workspace-menus .notification-button:hover,.workspace-menus .notification-button[aria-expanded=true],.account-menu-trigger:hover,.account-menu-trigger[aria-expanded=true]{background:#f0f4fc}
+.account-menu-trigger{display:flex;align-items:center;gap:9px;padding:6px;border-radius:6px;color:#34476a}
+.account-trigger-name{text-align:right;max-width:150px}
+.account-trigger-name strong{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-trigger-name small{display:block;font-size:10px;color:#7c8dab;margin-top:2px}
+.account-menu-trigger .topbar-avatar{flex-shrink:0}
+.topbar-dropdown{position:absolute;right:0;top:calc(100% + 12px);z-index:45;background:#fff;border:1px solid #dce4f1;border-radius:12px;box-shadow:0 8px 28px #233a621a,0 0 0 1px #eaf0f680;overflow:hidden;color:#34435f;text-align:left}
+.notification-dropdown{width:345px;max-width:calc(100vw - 32px)}
+.dropdown-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 15px;border-bottom:1px solid #edf1f8;font-size:12px}
+.dropdown-heading strong{font-weight:600;color:#1d2940}
+.dropdown-heading button{font-size:11px;color:#526eaa;font-weight:600}
+.dropdown-heading button:disabled{color:#9aaac5;cursor:default}
+.notification-scroll{max-height:340px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.notification-preview-label{padding:10px 15px;background:#f8faff;color:#8192ae;font-size:10px;line-height:1.6}
+.notification-row{display:flex;gap:10px;padding:14px 15px;border-bottom:1px solid #edf1f8}
+.notification-row:last-child{border-bottom:0}
+.notification-unread{width:7px;height:7px;flex-shrink:0;border-radius:50%;background:#6085da;margin-top:5px}
+.notification-read .notification-unread{background:transparent}
+.notification-row strong{font-size:12px;font-weight:500;display:block}
+.notification-row p{font-size:11px;color:#7185a8;line-height:1.6;margin-top:3px}
+.notification-row small{display:block;font-size:10px;color:#94a4bf;margin-top:4px}
+.notification-empty{display:grid;justify-items:center;gap:9px;padding:32px 20px;color:#8c9db8;font-size:12px}
+.notification-empty strong{color:#455b80}
+.account-dropdown{width:245px;max-width:calc(100vw - 32px);padding-bottom:6px}
+.account-dropdown-heading{padding:14px 15px;border-bottom:1px solid #edf1f8;margin-bottom:5px;overflow-wrap:anywhere}
+.account-dropdown-heading strong{display:block;font-size:12px;font-weight:600}
+.account-dropdown-heading small{display:block;font-size:11px;color:#7588a8;margin-top:3px}
+.account-dropdown>a,.account-dropdown>button{display:flex;align-items:center;gap:11px;padding:10px 15px;width:100%;font-size:12px;text-decoration:none;text-align:left}
+.account-dropdown>a:hover,.account-dropdown>button:hover{background:#f6f8fc}
+.account-dropdown .account-signout{color:#ed405c}
+.account-signout:disabled{opacity:.5}
+@media(max-width:760px){.workspace-menus{gap:8px}.account-trigger-name{display:none}.workspace-menus .topbar-menu-anchor{position:static}.notification-dropdown{right:0}.topbar-actions{gap:10px}.account-menu-trigger{gap:5px}}

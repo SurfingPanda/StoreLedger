@@ -1,5 +1,7 @@
 ﻿import { useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowRight, Bell, Building2, Check, ChevronRight, CircleAlert, ClipboardList, CreditCard, Droplets, FileCheck2, LayoutDashboard, LogOut, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Settings, Wifi, Search, Send, ShieldCheck, SlidersHorizontal, X, Zap } from 'lucide-react';
+import { ArrowDownLeft, ArrowRight, Bell, Building2, Check, ChevronRight, CircleAlert, ClipboardList, CreditCard, Droplets, FileCheck2, LayoutDashboard, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Settings, Wifi, Search, Send, ShieldCheck, SlidersHorizontal, X, Zap } from 'lucide-react';
+import { confirmAction, showError } from '@/lib/alerts';
+import WorkspaceMenus from '@/components/workspace-menus';
 import NotificationSettings from '@/pages/notification-settings';
 import PosRenewals from '@/pages/pos-renewals';
 import InternetSoas from '@/pages/internet-soas';
@@ -42,7 +44,6 @@ export default function Workspace({ data }: { data: AppData }) {
   function toggleSidebar() { setCollapsed(value => { try { localStorage.setItem('bw-sidebar-collapsed', String(!value)); } catch {} return !value; }); }
   const [sidebar, setSidebar] = useState(false);
   const [selected, setSelected] = useState<Voucher | null>(null);
-  const [notifications, setNotifications] = useState(false);
   const [read, setRead] = useState(false);
   const records = sample ? samples : [];
   const scoped = records.filter(row => (active === 'All modules' || row.module === active) && (period === 'all' || Math.abs(row.offset) <= Number(period)));
@@ -56,9 +57,17 @@ export default function Workspace({ data }: { data: AppData }) {
   const roleLabel = ({ admin: 'Admin', accounting: 'Accounting', finance: 'Finance', it: 'IT', rso: 'RSO' } as Record<string, string>)[data.user?.role ?? ''] ?? 'Team';
   function navigate(module: Module) { if (module === 'UTAK POS') { window.location.assign(data.urls.pos); return; } if (data.page === 'utak-pos' || data.page === 'internet-soa' || data.page === 'settings') { const url = new URL(data.urls.dashboard); if (module !== 'All modules') url.searchParams.set('module', module); window.location.assign(url); return; } setActive(module); setStage('All vouchers'); setQuery(''); setSidebar(false); }
   async function logout() {
-    setBusy(true); setError('');
+    if (busy) return;
+    setBusy(true);
+    const confirmed = await confirmAction('You will be signed out of your workspace.', 'Yes, sign out');
+    if (!confirmed) { setBusy(false); return; }
+    setError('');
     try { const result = await post(data.urls.logout, {}); window.location.assign(result.redirect ?? data.urls.login); }
-    catch { setError('Could not sign you out. Please try again.'); setBusy(false); }
+    catch {
+      setError('Could not sign you out. Please try again.');
+      await showError('Could not sign you out. Please try again.', 'Sign out failed');
+      setBusy(false);
+    }
   }
   return <div className={`admin-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
     {sidebar && <button className="sidebar-shade" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
@@ -74,11 +83,11 @@ export default function Workspace({ data }: { data: AppData }) {
         {data.user?.role === 'admin' && <><p className="nav-caption modules-caption">ADMINISTRATION</p><a href={data.urls.settings} title="Settings" aria-label="Settings" className={`nav-item ${data.page === 'settings' ? 'nav-active' : ''}`} aria-current={data.page === 'settings' ? 'page' : undefined}><Settings size={18} /><span className="nav-label">Settings</span></a></>}
       </nav>
       <div className="sidebar-process"><span className="nav-caption">ONE CONNECTED PROCESS</span><div><span>IT</span><ArrowRight size={12} /><span>Accounting</span></div><div><span>Finance</span><ArrowRight size={12} /><span>RSO</span></div><p>From voucher to payment,<br />everyone stays in the loop.</p></div>
-      <div className="sidebar-account"><span className="account-avatar">{name.slice(0, 1).toUpperCase()}</span><div><strong>{data.user?.name}</strong><small>{roleLabel} workspace</small></div><button aria-label="Sign out" title="Sign out" disabled={busy} onClick={logout}><LogOut size={17} /></button></div>
+      <div className="sidebar-account"><span className="account-avatar">{name.slice(0, 1).toUpperCase()}</span><div><strong>{data.user?.name}</strong><small>{roleLabel} workspace</small></div></div>
     </aside>
 
     <div className="admin-body">
-      <header className="admin-topbar"><div className="breadcrumb"><button className="desktop-sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Minimize sidebar'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Minimize sidebar'}>{collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}</button><button className="mobile-menu" aria-label="Open navigation" onClick={() => setSidebar(true)}><Menu size={21} /></button><span>Workspace</span><ChevronRight size={13} /><strong>{data.page === 'settings' ? 'Settings' : data.page === 'internet-soa' ? 'Internet SOA Monitoring' : active === 'All modules' ? 'Dashboard' : active}</strong></div><div className="topbar-actions"><span className="admin-access"><ShieldCheck size={14} />{roleLabel} access</span><span className="topbar-separator" /><button className="notification-button" aria-label="Open notification preview" onClick={() => setNotifications(true)}><Bell size={19} />{sample && !read && <span />}</button><span className="topbar-avatar">{name.slice(0, 1).toUpperCase()}</span></div></header>
+      <header className="admin-topbar"><div className="breadcrumb"><button className="desktop-sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Minimize sidebar'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Minimize sidebar'}>{collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}</button><button className="mobile-menu" aria-label="Open navigation" onClick={() => setSidebar(true)}><Menu size={21} /></button><span>Workspace</span><ChevronRight size={13} /><strong>{data.page === 'settings' ? 'Settings' : data.page === 'internet-soa' ? 'Internet SOA Monitoring' : active === 'All modules' ? 'Dashboard' : active}</strong></div><div className="topbar-actions"><span className="admin-access"><ShieldCheck size={14} />{roleLabel} access</span><span className="topbar-separator" /><WorkspaceMenus data={data} roleLabel={roleLabel} busy={busy} logout={logout} sample={sample} read={read} markRead={() => setRead(true)} /></div></header>
       <main className="admin-content">
         {data.page === 'settings' ? <NotificationSettings data={data} /> : data.page === 'utak-pos' ? <PosRenewals data={data} /> : data.page === 'internet-soa' ? <InternetSoas data={data} /> : <>
         <div className="dashboard-heading"><div><p className="dashboard-kicker">THE BIG PICTURE</p><h1>{active === 'All modules' ? `Good to see you, ${name}.` : `${active} overview.`}</h1><p>Keep an eye on your dues. Keep every payment moving.</p></div><div className="dashboard-date"><span>{new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span><label><SlidersHorizontal size={14} /><select aria-label="Dashboard due date range" value={period} onChange={event => setPeriod(event.target.value)}><option value="30">Due within ±30 days</option><option value="90">Due within ±90 days</option><option value="all">All due dates</option></select></label></div></div>
@@ -108,13 +117,12 @@ export default function Workspace({ data }: { data: AppData }) {
           <section className="category-panel"><div className="section-heading"><div><h2>Where the spend goes</h2><p>Voucher amounts across your monitoring categories.</p></div><strong>{money(totalAmount)}</strong></div><div className="spend-bar" aria-hidden="true">{totals.map((item, index) => <span key={item.name} className={`spend-color-${index}`} style={{ width: `${totalAmount ? item.total / totalAmount * 100 : 25}%`, opacity: totalAmount ? 1 : .18 }} />)}</div><div className="spend-legend">{totals.map((item, index) => <button key={item.name} onClick={() => navigate(item.name)}><i className={`spend-color-${index}`} /><span>{item.name}<strong>{money(item.total)}</strong></span><small>{totalAmount ? Math.round(item.total / totalAmount * 100) : 0}%</small></button>)}</div></section>
         </div><aside className="dashboard-secondary">
           <section className="due-panel"><div className="section-heading"><h2>On the horizon</h2><span className="due-icon"><ArrowDownLeft size={17} /></span></div><p className="panel-description">Unpaid dues, earliest first.</p><div className="due-list">{due.map(row => <button key={row.id} onClick={() => setSelected(row)}><span className={`due-date-box ${row.offset < 0 ? 'due-late' : ''}`}><small>{dueDate(row.offset).toLocaleDateString('en-PH', { month: 'short' })}</small><strong>{dueDate(row.offset).getDate()}</strong></span><span className="due-details"><strong>{row.module}</strong><small>{row.location}</small><span>{money(row.amount)}</span></span>{row.offset < 0 ? <span className="due-tag">Overdue</span> : <ChevronRight size={14} />}</button>)}{!due.length && <p className="side-empty">No upcoming dues to show.</p>}</div></section>
-          <section className="rso-panel"><div className="rso-icon"><Bell size={19} strokeWidth={1.5} /></div><span className="quiet-label">CLOSING THE LOOP</span><h2>The right update.<br />At the right time.</h2><p>RSO stays informed when a voucher is processed and again when its payment is completed.</p><button onClick={() => setNotifications(true)}>Preview RSO updates<ArrowRight size={14} /></button><small>Notification delivery will be connected with the workflow.</small></section>
+          <section className="rso-panel"><div className="rso-icon"><Bell size={19} strokeWidth={1.5} /></div><span className="quiet-label">CLOSING THE LOOP</span><h2>The right update.<br />At the right time.</h2><p>RSO stays informed when a voucher is processed and again when its payment is completed.</p><button onClick={() => { const bell = document.querySelector<HTMLButtonElement>('button[aria-controls="notification-dropdown"]'); bell?.focus(); bell?.click(); }}>Preview RSO updates<ArrowRight size={14} /></button><small>Notification delivery will be connected with the workflow.</small></section>
         </aside></div>
         </>}
         <footer className="dashboard-footer"><span>BW Superbakeshop · Rental & renewal management</span><span>One workspace. Every detail accounted for.</span></footer>
       </main>
     </div>
     <Dialog open={!!selected} onOpenChange={open => { if (!open) setSelected(null); }}><DialogContent className="voucher-dialog">{selected && <><span className="quiet-label">SAMPLE VOUCHER · {selected.id}</span><DialogTitle className="text-2xl font-medium">{selected.location}</DialogTitle><DialogDescription>{selected.description} · {selected.module}</DialogDescription><div className="detail-amount">{money(selected.amount)}<span>Due {dateLabel(selected.offset)}</span></div><div className="detail-timeline">{stages.map((item, index) => <div key={item} className={index <= stages.indexOf(selected.stage) ? 'timeline-reached' : ''}><span>{index < stages.indexOf(selected.stage) ? <Check size={14} /> : index + 1}</span><div><strong>{item === 'Paid' ? 'Payment complete / RSO update' : item}</strong><small>{index < stages.indexOf(selected.stage) ? 'Previous stage' : index === stages.indexOf(selected.stage) ? 'Current stage' : 'Upcoming stage'}</small></div></div>)}</div><p className="text-xs text-muted-foreground">Preview only. These records do not create vouchers, record payments, or send notifications.</p></>}</DialogContent></Dialog>
-    <Dialog open={notifications} onOpenChange={setNotifications}><DialogContent><span className="dialog-symbol"><Bell size={21} /></span><DialogTitle className="text-xl font-medium">RSO notification preview</DialogTitle><DialogDescription>These are examples of the two updates RSO will receive. Live delivery is not connected yet.</DialogDescription><div className="notification-example"><FileCheck2 size={19} /><div><strong>Voucher processed</strong><p>Accounting has processed a voucher. It is now with Finance for payment.</p></div></div><div className="notification-example"><CreditCard size={19} /><div><strong>Payment completed</strong><p>Finance has recorded the payment. RSO can review the completed transaction.</p></div></div><Button onClick={() => { setRead(true); setNotifications(false); }}>Got it</Button></DialogContent></Dialog>
   </div>;
 }
