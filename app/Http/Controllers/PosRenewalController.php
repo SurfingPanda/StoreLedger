@@ -148,7 +148,16 @@ class PosRenewalController extends Controller
         if ($sort !== 'id') $query->orderBy('id', $direction);
         $records = $query->paginate(15);
         $records->through(fn ($record) => array_merge($record->toArray(), ['detail_url' => route('utak-pos.detail', $record)]));
-        return response()->json($records);
+        $totals = PosRenewal::selectRaw('status, COUNT(*) as total, SUM(amount) as amount')->groupBy('status')->get()->keyBy('status');
+        return response()->json(array_merge($records->toArray(), ['summary' => [
+            'pending_count' => (int) ($totals->get('awaiting_voucher')?->total ?? 0),
+            'pending_amount' => number_format((float) ($totals->get('awaiting_voucher')?->amount ?? 0), 2, '.', ''),
+            'awaiting_payment_count' => (int) ($totals->get('vouchered')?->total ?? 0),
+            'awaiting_payment_amount' => number_format((float) ($totals->get('vouchered')?->amount ?? 0), 2, '.', ''),
+            'paid_count' => (int) ($totals->get('paid')?->total ?? 0),
+            'paid_amount' => number_format((float) ($totals->get('paid')?->amount ?? 0), 2, '.', ''),
+            'overdue_pending_count' => PosRenewal::where('status', 'awaiting_voucher')->where('renewal_date', '<', now('Asia/Manila')->toDateString())->count(),
+        ]]));
     }
 
     public function store(Request $request): JsonResponse

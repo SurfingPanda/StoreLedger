@@ -11,6 +11,25 @@ class PosStatusFilterTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_summary_totals_include_all_records_independently_of_search_status_and_page(): void
+    {
+        $this->actingAs($admin = User::factory()->create(['role' => 'admin']));
+        foreach ([['awaiting_voucher', '100.25', -1], ['awaiting_voucher', '200.50', 1], ['vouchered', '300.75', 0], ['paid', '400.00', -1], ['cancelled', '999.00', -1]] as [$status, $amount, $offset]) {
+            $record = new PosRenewal(['store_name' => 'Store '.$status, 'amount' => $amount, 'renewal_date' => now('Asia/Manila')->addDays($offset)->toDateString()]);
+            $record->created_by = $admin->id;
+            $record->status = $status;
+            $record->save();
+        }
+        $this->actingAs(User::factory()->create(['role' => 'accounting']));
+        foreach (['', '?status=paid', '?search=NotFound', '?page=2'] as $query) {
+            $this->getJson('/utak-pos/records'.$query)->assertOk()
+                ->assertJsonPath('summary.pending_count', 2)->assertJsonPath('summary.pending_amount', '300.75')
+                ->assertJsonPath('summary.awaiting_payment_count', 1)->assertJsonPath('summary.awaiting_payment_amount', '300.75')
+                ->assertJsonPath('summary.paid_count', 1)->assertJsonPath('summary.paid_amount', '400.00')
+                ->assertJsonPath('summary.overdue_pending_count', 1);
+        }
+    }
+
     public function test_sorting_orders_all_records_before_pagination_and_validates_columns(): void
     {
         $this->actingAs($admin = User::factory()->create(['role' => 'admin']));

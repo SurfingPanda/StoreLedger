@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { CreditCard, Download, LoaderCircle } from 'lucide-react';
+import { CheckCircle2, CreditCard, Download, LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { post, RequestError } from '@/lib/auth';
@@ -32,7 +32,7 @@ export default function PosPayment({ payment, canPay, amount, base, disabled, on
     } finally { savingRef.current = false; setSaving(false); }
   }
   if (!payment && !canPay) return null;
-  return <section className="register-panel voucher-history"><div className="section-heading"><div><h2><CreditCard size={18} />{payment ? 'Payment details' : 'Record payment'}</h2><p>{payment ? 'Payment recorded by Finance, with supporting proof.' : 'Record the full payment and attach its proof to complete this renewal.'}</p></div></div>
+  return <section id="payment-panel" className={`register-panel payment-panel ${payment ? 'payment-panel-complete' : 'payment-panel-pending'}`}><div className="section-heading payment-panel-heading"><div className="payment-heading-content"><span className="payment-heading-icon">{payment ? <CheckCircle2 size={25} /> : <CreditCard size={25} />}</span><div><span className="payment-eyebrow">{payment ? 'PAYMENT COMPLETE' : 'FINANCE · ACTION REQUIRED'}</span><h2>{payment ? 'Payment recorded' : 'Record payment'}</h2><p>{payment ? 'This renewal is paid. Review the payment details or download the proof below.' : 'Enter the transaction details and upload proof, then save to mark this request as paid.'}</p></div></div><span className={`status-pill ${payment ? 'status-paid' : 'status-finance'}`}>{payment ? 'Paid' : 'Awaiting payment'}</span></div>
     {payment ? <><dl className="voucher-detail-fields">
       <div><dt>Amount paid</dt><dd>{money(payment.amount)}</dd></div><div><dt>Payment date</dt><dd>{new Date(`${payment.paid_on.slice(0, 10)}T12:00:00`).toLocaleDateString('en-PH', { dateStyle: 'medium' })}</dd></div>
       <div><dt>Payment method</dt><dd>{methods[payment.method] ?? payment.method}</dd></div><div><dt>Payment reference</dt><dd>{payment.reference}</dd></div>
@@ -41,16 +41,16 @@ export default function PosPayment({ payment, canPay, amount, base, disabled, on
     </dl><div className="payment-proof-link"><a className="soa-download" href={payment.proof_url}><Download size={16} />{payment.proof_name}</a></div></> : <form ref={form} className="payment-form" onSubmit={save} aria-busy={saving}>
       {error && <div className="form-alert" role="alert">{error}</div>}
       <fieldset disabled={saving || disabled} className="soa-form-fields">
-        <p className="payment-total">Full payment: <strong>{money(amount)}</strong></p>
-        <div className="payment-form-grid">
+        <div className="payment-total"><span>AMOUNT TO RECORD</span><strong>{money(amount)}</strong><small>Full payment for this renewal</small></div>
+        <div className="payment-entry-columns"><div><h3><span>1</span>Payment details</h3><p className="payment-step-hint">Use the date and reference from the completed transaction.</p><div className="payment-form-grid">
           <div className="field-group"><label htmlFor="payment-date">Payment date</label><Input id="payment-date" name="paid_on" type="date" required {...field('paid_on')} />{fieldError('paid_on')}</div>
           <div className="field-group"><label htmlFor="payment-method">Payment method</label><select id="payment-method" name="method" required defaultValue="" {...field('method')}><option value="" disabled>Select payment method</option>{Object.entries(methods).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{fieldError('method')}</div>
         </div>
-        <div className="field-group"><label htmlFor="payment-reference">Payment reference</label><Input id="payment-reference" name="reference" required maxLength={100} placeholder="Transaction, receipt, or check number" {...field('reference')} />{fieldError('reference')}</div>
+        <div className="field-group"><label htmlFor="payment-reference">Payment reference</label><Input id="payment-reference" name="reference" required maxLength={100} placeholder="Transaction, receipt, or check number" {...field('reference')} />{fieldError('reference')}</div></div>
+        <div><h3><span>2</span>Proof & notes</h3><p className="payment-step-hint">Attach the receipt or transfer confirmation for this payment.</p>
         <div className="field-group"><label htmlFor="payment-proof">Proof of payment</label><Input id="payment-proof" name="proof" type="file" accept=".pdf,.jpg,.jpeg,.png" required {...field('proof')} /><p className="pos-save-hint">PDF, JPG, or PNG - Maximum 10 MB</p>{fieldError('proof')}</div>
-        <div className="field-group"><label htmlFor="payment-notes">Payment notes (optional)</label><textarea id="payment-notes" name="notes" rows={3} maxLength={5000} placeholder="Bank, payee, or other payment details" {...field('notes')} />{fieldError('notes')}</div>
-        <p className="pos-save-hint">Submitting records the payment as complete and removes this renewal from the Finance queue.</p>
-        <div className="pos-form-actions"><Button type="submit">{saving ? <><LoaderCircle className="animate-spin" />Saving...</> : 'Save payment and mark paid'}</Button></div>
+        <div className="field-group"><label htmlFor="payment-notes">Payment notes (optional)</label><textarea id="payment-notes" name="notes" rows={3} maxLength={5000} placeholder="Bank, payee, or other payment details" {...field('notes')} />{fieldError('notes')}</div></div></div>
+        <div className="payment-submit-bar"><p>Saving completes the payment and removes this request from the Finance queue.</p><Button type="submit">{saving ? <><LoaderCircle className="animate-spin" />Saving...</> : <><CheckCircle2 size={17} />Save payment & mark paid</>}</Button></div>
       </fieldset>
     </form>}
   </section>;
