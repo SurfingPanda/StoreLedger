@@ -1,6 +1,6 @@
 export type AppData = {
   assets: { mascot: string; logo: string };
-  page: 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'pos-voucher' | 'internet-soa' | 'electricity' | 'rental' | 'water' | 'settings';
+  page: 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'pos-voucher' | 'internet-soa' | 'internet-voucher' | 'electricity' | 'rental' | 'water' | 'water-voucher' | 'electricity-voucher' | 'rental-voucher' | 'settings';
   renewalId?: number;
   email: string;
   token: string;

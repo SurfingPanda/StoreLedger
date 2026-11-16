@@ -5,9 +5,10 @@ import PosPayment, { type Payment } from '@/pages/pos-payment';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { post, RequestError, type AppData } from '@/lib/auth';
+import { requestModule } from '@/lib/request-module';
 
 type Person = { name: string; role: string };
-type Renewal = { id: number; store_name: string; amount: string; renewal_date: string; status: string; created_at: string; creator: Person | null; voucher_actor: Person | null; voucher_action_at: string | null; voucher_reference: string | null; detail_url?: string; payment: Payment | null };
+type Renewal = { id: number; store_name: string; amount: string; renewal_date: string; status: string; created_at: string; creator: Person | null; voucher_actor: Person | null; voucher_action_at: string | null; voucher_reference: string | null; detail_url?: string; payment: Payment | null; due_date?: string; attachment_url?: string; attachment_name?: string };
 type Comment = { id: number; body: string; created_at: string; author: Person | null };
 type Page<T> = { data: T[]; current_page: number; last_page: number; total: number };
 type Details = { record: Renewal; history: Page<Renewal>; comments: Page<Comment> };
@@ -17,7 +18,8 @@ const time = (value: string) => new Date(value).toLocaleString('en-PH', { dateSt
 const status = (value: string) => ({ awaiting_voucher: 'Awaiting voucher', vouchered: 'Awaiting Finance payment', paid: 'Paid', cancelled: 'Cancelled' }[value] ?? value.replaceAll('_', ' '));
 
 export default function PosVoucher({ data }: { data: AppData }) {
-  const base = `${data.urls.posRecords}/${data.renewalId}`;
+  const { isSoa, label: moduleLabel, prefix, recordsUrl, listUrl } = requestModule(data);
+  const base = `${recordsUrl}/${data.renewalId}`;
   const accounting = data.user?.role === 'accounting';
   const finance = data.user?.role === 'finance';
   const [details, setDetails] = useState<Details | null>(null);
@@ -41,11 +43,11 @@ export default function PosVoucher({ data }: { data: AppData }) {
         if (!response.ok) throw new Error(response.status === 404 ? 'This renewal could not be found.' : 'Could not load the voucher details. Refresh or try again.');
         return response.json() as Promise<Details>;
       })
-      .then(setDetails)
+      .then(result => setDetails(isSoa ? { ...result, record: { ...result.record, renewal_date: result.record.due_date! }, history: { ...result.history, data: result.history.data.map(row => ({ ...row, renewal_date: row.due_date! })) } } : result))
       .catch(error => { if (!controller.signal.aborted) setLoadError(error.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [base, historyPage, commentsPage, revision]);
+  }, [base, isSoa, historyPage, commentsPage, revision]);
 
   async function submit(kind: 'comment' | 'process' | 'cancel') {
     if (busyRef.current) return;
@@ -62,31 +64,32 @@ export default function PosVoucher({ data }: { data: AppData }) {
   function comment(event: FormEvent) { event.preventDefault(); void submit('comment'); }
   const record = details?.record;
   return <div className="pos-page voucher-detail-page">
-    <a className="voucher-back" href={data.urls.pos}><ArrowLeft size={16} />Back to UTAK POS</a>
-    <div className="dashboard-heading"><div><p className="dashboard-kicker">UTAK POS / REQUEST DETAILS</p><h1>{record?.store_name ?? 'Renewal details'}</h1><p>Review the voucher, payment, comments, and store history.</p></div>{record && <span className={`status-pill ${record.status === 'awaiting_voucher' ? 'status-accounting' : record.status === 'vouchered' ? 'status-finance' : record.status === 'paid' ? 'status-paid' : 'status-review'}`}>{status(record.status)}</span>}</div>
+    <a className="voucher-back" href={listUrl}><ArrowLeft size={16} />Back to {moduleLabel}</a>
+    <div className="dashboard-heading"><div><p className="dashboard-kicker">{moduleLabel.toUpperCase()} / REQUEST DETAILS</p><h1>{record?.store_name ?? 'Renewal details'}</h1><p>Review the voucher, payment, comments, and store history.</p></div>{record && <span className={`status-pill ${record.status === 'awaiting_voucher' ? 'status-accounting' : record.status === 'vouchered' ? 'status-finance' : record.status === 'paid' ? 'status-paid' : 'status-review'}`}>{status(record.status)}</span>}</div>
     {success && <div className="pos-success" role="status"><CheckCircle2 size={18} />{success}</div>}
     {error && !action && <div className="form-alert" role="alert">{error}</div>}
-    {record && !loadError && <nav className="request-section-nav" aria-label="Request sections">{(record.payment || (finance && record.status === 'vouchered')) && <a className="request-primary-link" href="#payment-panel">{record.payment ? 'Payment details' : 'Record payment'}</a>}<a href="#renewal-details">Renewal details</a><a href="#request-activity">Activity & comments</a><a href="#renewal-history">Store history</a></nav>}
+    {record && !loadError && <nav className="request-section-nav" aria-label="Request sections">{(record.payment || (finance && record.status === 'vouchered')) && <a className="request-primary-link" href="#payment-panel">{record.payment ? 'Payment details' : 'Record payment'}</a>}<a href="#renewal-details">{isSoa ? 'SOA details' : 'Renewal details'}</a><a href="#request-activity">Activity & comments</a><a href="#renewal-history">Store history</a></nav>}
     {loadError ? <div className="pos-load-error" role="alert"><p>{loadError}</p><Button variant="outline" onClick={() => setRevision(value => value + 1)}>Try again</Button></div> : !record || !details ? <div className="register-empty" role="status"><LoaderCircle className="animate-spin" /><p>Loading voucher details...</p></div> : <div className="voucher-detail-layout" aria-busy={loading}>
         <PosPayment payment={record.payment} canPay={finance && record.status === 'vouchered'} amount={record.amount} base={base} disabled={busy || loading} onSaved={message => { setSuccess(message); setError(''); setRevision(value => value + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
       <div>
-        <section id="renewal-details" className="register-panel voucher-detail-card"><div className="section-heading"><div><h2><ClipboardList size={18} />Renewal details</h2><p>POS-{String(record.id).padStart(5, '0')}</p></div></div><dl className="voucher-detail-fields">
+        <section id="renewal-details" className="register-panel voucher-detail-card"><div className="section-heading"><div><h2><ClipboardList size={18} />{isSoa ? 'SOA details' : 'Renewal details'}</h2><p>{prefix}-{String(record.id).padStart(5, '0')}</p></div></div><dl className="voucher-detail-fields">
           <div><dt>Store</dt><dd>{record.store_name}</dd></div><div><dt>Amount</dt><dd>{money(record.amount)}</dd></div>
-          <div><dt>Renewal date</dt><dd>{day(record.renewal_date)}</dd></div><div><dt>Status</dt><dd>{status(record.status)}</dd></div>
+          <div><dt>{isSoa ? 'Due date' : 'Renewal date'}</dt><dd>{day(record.renewal_date)}</dd></div><div><dt>Status</dt><dd>{status(record.status)}</dd></div>
           <div><dt>Created by</dt><dd>{record.creator?.name ?? 'Unknown user'}</dd></div><div><dt>Date created</dt><dd>{time(record.created_at)}</dd></div>
           {record.voucher_action_at && <><div><dt>{record.status === 'cancelled' ? 'Cancelled by' : 'Processed by'}</dt><dd>{record.voucher_actor?.name ?? 'Unknown user'}</dd></div><div><dt>Action date</dt><dd>{time(record.voucher_action_at)}</dd></div></>}
           {record.voucher_reference && <div><dt>Voucher reference</dt><dd>{record.voucher_reference}</dd></div>}
+          {isSoa && <div className="isSoa-original-soa"><dt>Original statement of account</dt><dd><a className="soa-download" href={record.attachment_url}>{record.attachment_name || 'Download SOA'}</a></dd></div>}
         </dl>
-        {accounting && record.status === 'awaiting_voucher' && <div className="voucher-completion"><label htmlFor="voucher-reference">Voucher reference <span>(optional)</span></label><Input id="voucher-reference" value={reference} maxLength={100} disabled={busy} onChange={event => setReference(event.target.value)} placeholder="Enter the voucher number or reference" /><p>Complete this step after preparing the voucher. The renewal will leave the pending queue.</p><div className="pos-form-actions"><Button variant="outline" disabled={busy || loading} onClick={() => { setError(''); setAction('cancel'); }}>Cancel renewal</Button><Button disabled={busy || loading} onClick={() => { setError(''); setAction('process'); }}>Mark voucher processed</Button></div></div>}
+        {accounting && record.status === 'awaiting_voucher' && <div className="voucher-completion"><label htmlFor="voucher-reference">Voucher reference <span>(optional)</span></label><Input id="voucher-reference" value={reference} maxLength={100} disabled={busy} onChange={event => setReference(event.target.value)} placeholder="Enter the voucher number or reference" /><p>Complete this step after preparing the voucher. The request will leave the pending queue.</p><div className="pos-form-actions"><Button variant="outline" disabled={busy || loading} onClick={() => { setError(''); setAction('cancel'); }}>Cancel request</Button><Button disabled={busy || loading} onClick={() => { setError(''); setAction('process'); }}>Mark voucher processed</Button></div></div>}
         </section>
-        <section className="register-panel renewal-progress-panel"><div className="section-heading"><div><h2><ClipboardList size={18} />Request progress</h2><p>Current responsibility and the next step for this renewal.</p></div></div>
+        <section className="register-panel renewal-progress-panel"><div className="section-heading"><div><h2><ClipboardList size={18} />Request progress</h2><p>Current responsibility and the next step for this request.</p></div></div>
           <div className="renewal-progress-stages" aria-label="Request stages">
             <div className="progress-stage stage-complete"><span><CheckCircle2 size={17} /></span><div><strong>Request created</strong><small>{day(record.created_at)}</small></div></div>
             <div className={`progress-stage ${record.status === 'cancelled' ? 'stage-cancelled' : record.voucher_action_at ? 'stage-complete' : 'stage-current'}`}><span>{record.voucher_action_at && record.status !== 'cancelled' ? <CheckCircle2 size={17} /> : '2'}</span><div><strong>{record.status === 'cancelled' ? 'Request cancelled' : 'Accounting voucher'}</strong><small>{record.voucher_action_at ? day(record.voucher_action_at) : 'Awaiting processing'}</small></div></div>
             <div className={`progress-stage ${record.payment ? 'stage-complete' : record.status === 'vouchered' ? 'stage-current' : ''}`}><span>{record.payment ? <CheckCircle2 size={17} /> : '3'}</span><div><strong>Finance payment</strong><small>{record.payment ? day(record.payment.paid_on) : record.status === 'cancelled' ? 'Not required' : record.status === 'vouchered' ? 'Awaiting payment' : 'After voucher processing'}</small></div></div>
           </div>
-          <div className="renewal-next-step"><span className="renewal-next-label">{record.status === 'paid' ? 'COMPLETED' : record.status === 'cancelled' ? 'CANCELLED' : 'NEXT STEP'}</span><strong>{record.status === 'paid' ? 'Payment recorded by Finance' : record.status === 'cancelled' ? 'This request is closed' : record.status === 'vouchered' ? 'Finance to record payment' : 'Accounting to prepare the voucher'}</strong><p>{record.status === 'paid' ? 'Payment details and proof are available below. The full record remains in the store history.' : record.status === 'cancelled' ? 'No further voucher or payment action is required. The request and comments remain in the history.' : record.status === 'vouchered' ? 'The voucher is ready. Finance will enter the payment date, method, and reference, then attach proof of payment.' : 'Review the renewal details, add any notes, and mark the voucher processed to send it to Finance.'}</p></div>
-          <dl className="renewal-progress-totals"><div><dt>Amount awaiting payment</dt><dd>{money(record.payment || record.status === 'cancelled' ? '0' : record.amount)}</dd></div><div><dt>Comments</dt><dd>{details.comments.total}</dd></div><div><dt>Store renewals</dt><dd>{details.history.total}</dd></div></dl>
+          <div className="renewal-next-step"><span className="renewal-next-label">{record.status === 'paid' ? 'COMPLETED' : record.status === 'cancelled' ? 'CANCELLED' : 'NEXT STEP'}</span><strong>{record.status === 'paid' ? 'Payment recorded by Finance' : record.status === 'cancelled' ? 'This request is closed' : record.status === 'vouchered' ? 'Finance to record payment' : 'Accounting to prepare the voucher'}</strong><p>{record.status === 'paid' ? 'Payment details and proof are available below. The full record remains in the store history.' : record.status === 'cancelled' ? 'No further voucher or payment action is required. The request and comments remain in the history.' : record.status === 'vouchered' ? 'The voucher is ready. Finance will enter the payment date, method, and reference, then attach proof of payment.' : 'Review the request details, add any notes, and mark the voucher processed to send it to Finance.'}</p></div>
+          <dl className="renewal-progress-totals"><div><dt>Amount awaiting payment</dt><dd>{money(record.payment || record.status === 'cancelled' ? '0' : record.amount)}</dd></div><div><dt>Comments</dt><dd>{details.comments.total}</dd></div><div><dt>{isSoa ? 'Store SOAs' : 'Store renewals'}</dt><dd>{details.history.total}</dd></div></dl>
         </section>
 
 
@@ -95,16 +98,16 @@ export default function PosVoucher({ data }: { data: AppData }) {
         {(accounting || finance) && <form className="voucher-comment-form" onSubmit={comment}><label htmlFor="voucher-comment">Add a comment</label><textarea id="voucher-comment" value={body} onChange={event => setBody(event.target.value)} required maxLength={5000} rows={4} disabled={busy} placeholder="Add voucher notes, follow-ups, or processing details..." /><div><small>{body.length}/5000</small><Button size="sm" disabled={busy || !body.trim()} type="submit">{busy ? 'Saving...' : 'Add comment'}</Button></div></form>}
         <div className="voucher-timeline">
           {record.payment && <article className="voucher-system-event"><strong>Payment completed</strong><small>{record.payment.recorded_by?.name} - {time(record.payment.created_at)}</small><p>{money(record.payment.amount)} paid. Reference: {record.payment.reference}</p><a className="soa-download" href={record.payment.proof_url}>Download proof of payment</a></article>}
-          {record.voucher_action_at && <article className="voucher-system-event"><strong>{record.status === 'cancelled' ? 'Renewal cancelled' : 'Voucher processed and sent to Finance'}</strong><small>{record.voucher_actor?.name ?? 'Unknown user'} · {time(record.voucher_action_at)}</small>{record.voucher_reference && <p>Voucher reference: {record.voucher_reference}</p>}</article>}
+          {record.voucher_action_at && <article className="voucher-system-event"><strong>{record.status === 'cancelled' ? 'Request cancelled' : 'Voucher processed and sent to Finance'}</strong><small>{record.voucher_actor?.name ?? 'Unknown user'} · {time(record.voucher_action_at)}</small>{record.voucher_reference && <p>Voucher reference: {record.voucher_reference}</p>}</article>}
           {details.comments.data.map(item => <article key={item.id}><strong>{item.author?.name ?? 'Unknown user'} <span>{item.author?.role}</span></strong><small>{time(item.created_at)}</small><p>{item.body}</p></article>)}
           {!details.comments.total && <p className="voucher-no-comments">No comments yet.</p>}
-          <article className="voucher-system-event"><strong>Renewal created</strong><small>{record.creator?.name ?? 'Unknown user'} · {time(record.created_at)}</small><p>Queued for Accounting voucher processing.</p></article>
+          <article className="voucher-system-event"><strong>Request created</strong><small>{record.creator?.name ?? 'Unknown user'} · {time(record.created_at)}</small><p>Queued for Accounting voucher processing.</p></article>
         </div>
         <Pager page={commentsPage} last={details.comments.last_page} disabled={loading || busy} change={setCommentsPage} label="comments" />
       </section>
-        <section id="renewal-history" className="register-panel voucher-history voucher-history-full"><div className="section-heading"><div><h2><History size={18} />Store renewal history</h2><p>Voucher dates, payment details, and references for this store.</p></div><span className="record-count">{details.history.total} {details.history.total === 1 ? 'record' : 'records'}</span></div>
-          <div className="voucher-table-scroll" role="region" aria-label="Store renewal history" tabIndex={0}><table className="voucher-table voucher-audit-table"><thead><tr><th scope="col">RECORD / CREATED</th><th scope="col">RENEWAL DATE</th><th scope="col" className="amount-column">AMOUNT</th><th scope="col">DATE VOUCHERED</th><th scope="col">DATE PAID / PAYMENT</th><th scope="col">STATUS</th></tr></thead><tbody>{details.history.data.map(row => <tr key={row.id} className={row.id === record.id ? 'voucher-current-row' : ''}>
-            <td><a className="history-record-link" href={row.detail_url}>POS-{String(row.id).padStart(5, '0')}</a>{row.id === record.id && <span className="history-current-tag">Current</span>}<small className="history-meta">Created {time(row.created_at)}</small><small className="history-meta">By {row.creator?.name ?? 'Unknown user'}</small></td>
+        <section id="renewal-history" className="register-panel voucher-history voucher-history-full"><div className="section-heading"><div><h2><History size={18} />{isSoa ? 'Store SOA history' : 'Store renewal history'}</h2><p>Voucher dates, payment details, and references for this store.</p></div><span className="record-count">{details.history.total} {details.history.total === 1 ? 'record' : 'records'}</span></div>
+          <div className="voucher-table-scroll" role="region" aria-label={isSoa ? 'Store SOA history' : 'Store renewal history'} tabIndex={0}><table className="voucher-table voucher-audit-table"><thead><tr><th scope="col">RECORD / CREATED</th><th scope="col">{isSoa ? 'DUE DATE' : 'RENEWAL DATE'}</th><th scope="col" className="amount-column">AMOUNT</th><th scope="col">DATE VOUCHERED</th><th scope="col">DATE PAID / PAYMENT</th><th scope="col">STATUS</th></tr></thead><tbody>{details.history.data.map(row => <tr key={row.id} className={row.id === record.id ? 'voucher-current-row' : ''}>
+            <td><a className="history-record-link" href={row.detail_url}>{prefix}-{String(row.id).padStart(5, '0')}</a>{row.id === record.id && <span className="history-current-tag">Current</span>}<small className="history-meta">Created {time(row.created_at)}</small><small className="history-meta">By {row.creator?.name ?? 'Unknown user'}</small></td>
             <td><strong className="history-date">{day(row.renewal_date)}</strong></td>
             <td className="amount-column">{money(row.amount)}</td>
             <td>{row.voucher_action_at && row.status !== 'cancelled' ? <><strong className="history-date">{time(row.voucher_action_at)}</strong><small className="history-meta">By {row.voucher_actor?.name ?? 'Unknown user'}</small><small className="history-reference">Ref: {row.voucher_reference || 'Not provided'}</small></> : <span className="history-pending">{row.status === 'cancelled' ? 'Not vouchered' : 'Pending voucher'}</span>}</td>
@@ -114,7 +117,7 @@ export default function PosVoucher({ data }: { data: AppData }) {
           <Pager page={historyPage} last={details.history.last_page} disabled={loading || busy} change={setHistoryPage} label="history" />
         </section>
     </div>}
-    <Dialog open={!!action} onOpenChange={value => { if (!value && !busyRef.current) setAction(null); }}><DialogContent><DialogTitle>{action === 'process' ? 'Mark voucher processed?' : 'Cancel this renewal?'}</DialogTitle><DialogDescription>{action === 'process' ? 'Confirm that the voucher is ready. This records you as the processor and removes the renewal from the pending queue.' : 'This renewal will be marked cancelled. Its details, history, and comments will be kept.'}</DialogDescription>{error && <div className="form-alert" role="alert">{error}</div>}<div className="pos-form-actions"><Button variant="outline" disabled={busy} onClick={() => setAction(null)}>Go back</Button><Button disabled={busy} onClick={() => action && void submit(action)}>{busy ? 'Saving...' : 'Confirm'}</Button></div></DialogContent></Dialog>
+    <Dialog open={!!action} onOpenChange={value => { if (!value && !busyRef.current) setAction(null); }}><DialogContent><DialogTitle>{action === 'process' ? 'Mark voucher processed?' : 'Cancel this request?'}</DialogTitle><DialogDescription>{action === 'process' ? 'Confirm that the voucher is ready. This records you as the processor and removes the request from the pending queue.' : 'This request will be marked cancelled. Its details, history, and comments will be kept.'}</DialogDescription>{error && <div className="form-alert" role="alert">{error}</div>}<div className="pos-form-actions"><Button variant="outline" disabled={busy} onClick={() => setAction(null)}>Go back</Button><Button disabled={busy} onClick={() => action && void submit(action)}>{busy ? 'Saving...' : 'Confirm'}</Button></div></DialogContent></Dialog>
   </div>;
 }
 

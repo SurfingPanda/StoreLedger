@@ -20,7 +20,7 @@ class AuthController extends Controller
     {
         return view('app', ['appData' => [
             'page' => $page,
-            'renewalId' => $request->route('posRenewal')?->id,
+            'renewalId' => $request->route('posRenewal')?->id ?? $request->route('internetSoa')?->id ?? $request->route('billingSoa')?->id,
             'assets' => [
                 'mascot' => asset('images/Full Moymoy 2.png'),
                 'logo' => asset('images/logo.png'),

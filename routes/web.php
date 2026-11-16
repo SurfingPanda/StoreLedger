@@ -24,11 +24,26 @@ Route::middleware('auth')->group(function () {
         Route::get('/'.$module, fn (Request $request, AuthController $auth) => $auth->page($request, $module))->name($module);
         Route::get('/'.$module.'/records', [BillingSoaController::class, 'index'])->defaults('module', $module)->name($module.'.records');
         Route::post('/'.$module.'/records', [BillingSoaController::class, 'store'])->defaults('module', $module);
+        Route::get('/'.$module.'/records/{billingSoa}', function (Request $request, AuthController $auth, \App\Models\BillingSoa $billingSoa) use ($module) {
+            abort_unless($billingSoa->module === $module, 404);
+            return $auth->page($request, $module.'-voucher');
+        })->defaults('module', $module)->name($module.'.detail');
+        Route::get('/'.$module.'/records/{billingSoa}/details', [BillingSoaController::class, 'details'])->defaults('module', $module)->name($module.'.details');
+        Route::post('/'.$module.'/records/{billingSoa}/comments', [BillingSoaController::class, 'comment'])->defaults('module', $module)->name($module.'.comments');
+        Route::post('/'.$module.'/records/{billingSoa}/voucher', [BillingSoaController::class, 'voucherAction'])->defaults('module', $module)->name($module.'.voucher');
+        Route::post('/'.$module.'/records/{billingSoa}/payment', [BillingSoaController::class, 'payment'])->defaults('module', $module)->name($module.'.payment');
+        Route::get('/'.$module.'/records/{billingSoa}/payment-proof', [BillingSoaController::class, 'paymentProof'])->defaults('module', $module)->name($module.'.payment-proof');
         Route::get('/'.$module.'/{billingSoa}/attachment', [BillingSoaController::class, 'attachment'])->defaults('module', $module)->name($module.'.attachment');
     }
     Route::get('/internet-soa', fn (Request $request, AuthController $auth) => $auth->page($request, 'internet-soa'))->name('internet-soa');
     Route::get('/internet-soa/records', [InternetSoaController::class, 'index'])->name('internet-soa.records');
     Route::post('/internet-soa/records', [InternetSoaController::class, 'store']);
+    Route::get('/internet-soa/records/{internetSoa}', fn (Request $request, AuthController $auth, \App\Models\InternetSoa $internetSoa) => $auth->page($request, 'internet-voucher'))->name('internet-soa.detail');
+    Route::get('/internet-soa/records/{internetSoa}/details', [InternetSoaController::class, 'details'])->name('internet-soa.details');
+    Route::post('/internet-soa/records/{internetSoa}/comments', [InternetSoaController::class, 'comment'])->name('internet-soa.comments');
+    Route::post('/internet-soa/records/{internetSoa}/voucher', [InternetSoaController::class, 'voucherAction'])->name('internet-soa.voucher');
+    Route::post('/internet-soa/records/{internetSoa}/payment', [InternetSoaController::class, 'payment'])->name('internet-soa.payment');
+    Route::get('/internet-soa/records/{internetSoa}/payment-proof', [InternetSoaController::class, 'paymentProof'])->name('internet-soa.payment-proof');
     Route::get('/internet-soa/{internetSoa}/attachment', [InternetSoaController::class, 'attachment'])->name('internet-soa.attachment');
     Route::get('/settings', function (Request $request, AuthController $auth) {
         abort_unless($request->user()->role === 'admin', 403);
