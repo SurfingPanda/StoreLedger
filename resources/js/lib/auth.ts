@@ -1,10 +1,11 @@
 export type AppData = {
   assets: { mascot: string; logo: string };
-  page: 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'internet-soa' | 'settings';
+  page: 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'pos-voucher' | 'internet-soa' | 'electricity' | 'rental' | 'water' | 'settings';
+  renewalId?: number;
   email: string;
   token: string;
   user: { name: string; email: string; role: string } | null;
-  urls: Record<'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'settings' | 'notificationSettings', string>;
+  urls: Record<'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'electricity' | 'electricityRecords' | 'rental' | 'rentalRecords' | 'water' | 'waterRecords' | 'settings' | 'notificationSettings', string>;
 };
 
 export class RequestError extends Error {

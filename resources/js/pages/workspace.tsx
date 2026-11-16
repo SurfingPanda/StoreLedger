@@ -2,7 +2,8 @@
 import { ArrowDownLeft, ArrowRight, Bell, Building2, Check, ChevronRight, CircleAlert, ClipboardList, CreditCard, Droplets, FileCheck2, LayoutDashboard, LogOut, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Settings, Wifi, Search, Send, ShieldCheck, SlidersHorizontal, X, Zap } from 'lucide-react';
 import NotificationSettings from '@/pages/notification-settings';
 import PosRenewals from '@/pages/pos-renewals';
-import InternetSoas from '@/pages/internet-soas';
+import PosVoucher from '@/pages/pos-voucher';
+import SoaMonitoring from '@/pages/soa-monitoring';
 import { Brand } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -33,7 +34,7 @@ const stageClass = (stage: Stage) => `status-${stage === 'IT review' ? 'review' 
 export default function Workspace({ data }: { data: AppData }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [active, setActive] = useState<Module>(data.page === 'utak-pos' ? 'UTAK POS' : (['Rental', 'Electricity', 'Water'].includes(new URLSearchParams(window.location.search).get('module') ?? '') ? new URLSearchParams(window.location.search).get('module') as Module : 'All modules'));
+  const active: Module = (data.page === 'utak-pos' || data.page === 'pos-voucher') ? 'UTAK POS' : data.page === 'rental' ? 'Rental' : data.page === 'electricity' ? 'Electricity' : data.page === 'water' ? 'Water' : 'All modules';
   const [sample, setSample] = useState(true);
   const [query, setQuery] = useState('');
   const [stage, setStage] = useState<Stage | 'All vouchers'>('All vouchers');
@@ -54,7 +55,7 @@ export default function Workspace({ data }: { data: AppData }) {
   const totalAmount = scoped.reduce((sum, row) => sum + row.amount, 0);
   const name = data.user?.name.split(' ')[0] || 'User';
   const roleLabel = ({ admin: 'Admin', accounting: 'Accounting', finance: 'Finance', it: 'IT', rso: 'RSO' } as Record<string, string>)[data.user?.role ?? ''] ?? 'Team';
-  function navigate(module: Module) { if (module === 'UTAK POS') { window.location.assign(data.urls.pos); return; } if (data.page === 'utak-pos' || data.page === 'internet-soa' || data.page === 'settings') { const url = new URL(data.urls.dashboard); if (module !== 'All modules') url.searchParams.set('module', module); window.location.assign(url); return; } setActive(module); setStage('All vouchers'); setQuery(''); setSidebar(false); }
+  function navigate(module: Module) { const urls: Record<Module, string> = { 'All modules': data.urls.dashboard, Rental: data.urls.rental, Electricity: data.urls.electricity, Water: data.urls.water, 'UTAK POS': data.urls.pos }; window.location.assign(urls[module]); }
   async function logout() {
     setBusy(true); setError('');
     try { const result = await post(data.urls.logout, {}); window.location.assign(result.redirect ?? data.urls.login); }
@@ -80,7 +81,7 @@ export default function Workspace({ data }: { data: AppData }) {
     <div className="admin-body">
       <header className="admin-topbar"><div className="breadcrumb"><button className="desktop-sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Minimize sidebar'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Minimize sidebar'}>{collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}</button><button className="mobile-menu" aria-label="Open navigation" onClick={() => setSidebar(true)}><Menu size={21} /></button><span>Workspace</span><ChevronRight size={13} /><strong>{data.page === 'settings' ? 'Settings' : data.page === 'internet-soa' ? 'Internet SOA Monitoring' : active === 'All modules' ? 'Dashboard' : active}</strong></div><div className="topbar-actions"><span className="admin-access"><ShieldCheck size={14} />{roleLabel} access</span><span className="topbar-separator" /><button className="notification-button" aria-label="Open notification preview" onClick={() => setNotifications(true)}><Bell size={19} />{sample && !read && <span />}</button><span className="topbar-avatar">{name.slice(0, 1).toUpperCase()}</span></div></header>
       <main className="admin-content">
-        {data.page === 'settings' ? <NotificationSettings data={data} /> : data.page === 'utak-pos' ? <PosRenewals data={data} /> : data.page === 'internet-soa' ? <InternetSoas data={data} /> : <>
+        {data.page === 'settings' ? <NotificationSettings data={data} /> : data.page === 'pos-voucher' ? <PosVoucher data={data} /> : data.page === 'utak-pos' ? <PosRenewals data={data} /> : ['internet-soa', 'electricity', 'rental', 'water'].includes(data.page) ? <SoaMonitoring key={data.page} data={data} /> : <>
         <div className="dashboard-heading"><div><p className="dashboard-kicker">THE BIG PICTURE</p><h1>{active === 'All modules' ? `Good to see you, ${name}.` : `${active} overview.`}</h1><p>Keep an eye on your dues. Keep every payment moving.</p></div><div className="dashboard-date"><span>{new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span><label><SlidersHorizontal size={14} /><select aria-label="Dashboard due date range" value={period} onChange={event => setPeriod(event.target.value)}><option value="30">Due within ±30 days</option><option value="90">Due within ±90 days</option><option value="all">All due dates</option></select></label></div></div>
         {error && <div className="form-alert" role="alert">{error}</div>}
         <div className="preview-banner"><div><span className="preview-dot" /><strong>{sample ? 'Sample workspace' : 'Your workspace is ready'}</strong><span>{sample ? 'Illustrative records for reviewing the dashboard. No live vouchers or payments.' : 'No live records yet. Voucher and payment modules are the next step.'}</span></div><button onClick={() => { setSample(!sample); setRead(false); setSelected(null); }}>{sample ? 'Show empty workspace' : 'Preview sample data'}<ArrowRight size={13} /></button></div>
