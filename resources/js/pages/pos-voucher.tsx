@@ -3,6 +3,7 @@ import { ArrowLeft, CheckCircle2, ClipboardList, History, LoaderCircle, MessageS
 import DuplicateBills from '@/components/duplicate-bills';
 import { type DuplicateBill } from '@/lib/auth';
 import RequestRevisionPanel, { RevisionHistoryPanel, type RevisionPermissions, type RevisionHistory } from '@/pages/request-revisions';
+import { TablePagination } from '@/components/table-presentation';
 import { Button } from '@/components/ui/button';
 import RecurringBillingPanel, { CurrentSoaForm, type Recurrence } from '@/pages/recurring-billing';
 import PosPayment, { type Payment } from '@/pages/pos-payment';
@@ -113,11 +114,11 @@ export default function PosVoucher({ data }: { data: AppData }) {
           {!details.comments.total && <p className="voucher-no-comments">No comments yet.</p>}
           <article className="voucher-system-event"><strong>Request created</strong><small>{record.creator?.name ?? 'Unknown user'} · {time(record.created_at)}</small><p>{record.recurring_schedule_id && isSoa ? 'Recurring billing cycle created. The current SOA must be attached before voucher processing.' : 'Queued for Accounting voucher processing.'}</p></article>
         </div>
-        <Pager page={commentsPage} last={details.comments.last_page} disabled={loading || busy} change={setCommentsPage} label="comments" />
+        <Pager total={details.comments.total} perPage={20} page={commentsPage} last={details.comments.last_page} disabled={loading || busy} change={setCommentsPage} label="comments" />
       </section>
         <RevisionHistoryPanel history={details.revisions} disabled={loading || busy} onPage={setRevisionsPage} />
         <section id="renewal-history" className="register-panel voucher-history voucher-history-full"><div className="section-heading"><div><h2><History size={18} />{isSoa ? 'Store SOA history' : 'Store renewal history'}</h2><p>Voucher dates, payments and references linked to this store ID, including previous store names.</p></div><span className="record-count">{details.history.total} {details.history.total === 1 ? 'record' : 'records'}</span></div>
-          <div className="voucher-table-scroll" role="region" aria-label={isSoa ? 'Store SOA history' : 'Store renewal history'} tabIndex={0}><table className="voucher-table voucher-audit-table"><thead><tr><th scope="col">RECORD / CREATED</th><th scope="col">{isSoa ? 'DUE DATE' : 'RENEWAL DATE'}</th><th scope="col" className="amount-column">AMOUNT</th><th scope="col">DATE VOUCHERED</th><th scope="col">DATE PAID / PAYMENT</th><th scope="col">STATUS</th></tr></thead><tbody>{details.history.data.map(row => <tr key={row.id} className={row.id === record.id ? 'voucher-current-row' : ''}>
+          <div className="voucher-table-scroll" role="region" aria-label={isSoa ? 'Store SOA history' : 'Store renewal history'} tabIndex={0}><table className="ledger-table voucher-table voucher-audit-table"><thead><tr><th scope="col">RECORD / CREATED</th><th scope="col">{isSoa ? 'DUE DATE' : 'RENEWAL DATE'}</th><th scope="col" className="amount-column">AMOUNT</th><th scope="col">DATE VOUCHERED</th><th scope="col">DATE PAID / PAYMENT</th><th scope="col">STATUS</th></tr></thead><tbody>{details.history.data.map(row => <tr key={row.id} className={row.id === record.id ? 'voucher-current-row' : ''}>
             <td><a className="history-record-link" href={row.detail_url}>{prefix}-{String(row.id).padStart(5, '0')}</a>{row.id === record.id && <span className="history-current-tag">Current</span>}<small className="history-meta">Created {time(row.created_at)}</small><small className="history-meta">By {row.creator?.name ?? 'Unknown user'}</small></td>
             <td><strong className="history-date">{day(row.renewal_date)}</strong></td>
             <td className="amount-column">{money(row.amount)}</td>
@@ -125,13 +126,13 @@ export default function PosVoucher({ data }: { data: AppData }) {
             <td>{row.payment ? <><strong className="history-date">{day(row.payment.paid_on)}</strong><small className="history-meta">{money(row.payment.amount)} / {row.payment.method.replaceAll('_', ' ')}</small><small className="history-reference">Ref: {row.payment.reference}</small><small className="history-meta">By {row.payment.recorded_by?.name ?? 'Unknown user'}</small><small className="history-meta">Recorded {time(row.payment.created_at)}</small>{row.payment.notes && <details className="history-payment-notes"><summary>Payment notes</summary><p>{row.payment.notes}</p></details>}</> : <span className="history-pending">{row.status === 'cancelled' ? 'Not paid' : row.status === 'awaiting_voucher' ? 'Awaiting voucher' : 'Awaiting payment'}</span>}</td>
             <td><span className={`status-pill ${row.status === 'paid' ? 'status-paid' : row.status === 'vouchered' ? 'status-finance' : row.status === 'awaiting_voucher' ? 'status-accounting' : 'status-review'}`}>{status(row.status)}</span>{row.duplicate_cancelled_at && <small className="history-meta">Duplicate cancelled {time(row.duplicate_cancelled_at)}</small>}{row.status === 'cancelled' && !row.duplicate_cancelled_at && row.voucher_action_at && <><small className="history-meta">{time(row.voucher_action_at)}</small><small className="history-meta">By {row.voucher_actor?.name ?? 'Unknown user'}</small></>}</td>
           </tr>)}</tbody></table></div>
-          <Pager page={historyPage} last={details.history.last_page} disabled={loading || busy} change={setHistoryPage} label="history" />
+          <Pager total={details.history.total} perPage={10} page={historyPage} last={details.history.last_page} disabled={loading || busy} change={setHistoryPage} label="history" />
         </section>
     </div>}
     <Dialog open={!!action} onOpenChange={value => { if (!value && !busyRef.current) setAction(null); }}><DialogContent><DialogTitle>{action === 'process' ? 'Mark voucher processed?' : 'Cancel this request?'}</DialogTitle><DialogDescription>{action === 'process' ? 'Confirm that the voucher is ready. This records you as the processor and removes the request from the pending queue.' : 'This request will be marked cancelled. Its details, history, and comments will be kept.'}</DialogDescription>{error && <div className="form-alert" role="alert">{error}</div>}<div className="pos-form-actions"><Button variant="outline" disabled={busy} onClick={() => setAction(null)}>Go back</Button><Button disabled={busy} onClick={() => action && void submit(action)}>{busy ? 'Saving...' : 'Confirm'}</Button></div></DialogContent></Dialog>
   </div>;
 }
 
-function Pager({ page, last, disabled, change, label }: { page: number; last: number; disabled: boolean; change: (page: number) => void; label: string }) {
-  return <div className="table-footer"><span>Page {page} of {last}</span><div className="pos-pagination"><button aria-label={`Previous ${label} page`} disabled={disabled || page <= 1} onClick={() => change(page - 1)}>Previous</button><button aria-label={`Next ${label} page`} disabled={disabled || page >= last} onClick={() => change(page + 1)}>Next</button></div></div>;
+function Pager({ page, last, disabled, change, label, total, perPage }: { total: number; perPage: number; page: number; last: number; disabled: boolean; change: (page: number) => void; label: string }) {
+  return <TablePagination total={total} from={total ? (page - 1) * perPage + 1 : 0} to={Math.min(page * perPage, total)} page={page} lastPage={last} disabled={disabled} onPage={change} label={label} />;
 }

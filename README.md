@@ -202,3 +202,16 @@ Each request details page supports a controlled revision workflow:
 The correction history records actors, times, reasons and before/after values. Replaced SOAs are retained and downloadable from their revision event. Revisions never change the original creator. Permission and state checks, a shared database lock, and request versions prevent unauthorized transitions or stale submissions. Browser voucher/payment actions send the current version; older API clients may omit it only before the first revision cycle. Revision actions always require a version.
 
 Workflow emails are keyed by review cycle so a corrected voucher can notify Finance/RSO again. Jobs from superseded cycles are suppressed. No historical requests are automatically returned or reopened by the migration.
+
+
+### Automation health
+
+Admins can open **Automation health** in the sidebar. Monitoring starts when its migration is applied; earlier command runs are not backfilled. A scheduled heartbeat runs every minute and reports whether the application has recently received a scheduler tick. Manual command execution records a run but does not update the scheduler heartbeat. No tick is reported as **Not observed**, a delay beyond three minutes as **Delayed**, and beyond ten minutes as **No recent heartbeat**.
+
+The page shows the last run/success, expected cadence, metrics and errors for the three daily Accounting reminder commands, minute-by-minute workflow email delivery, and hourly recurring generation. All times on the page use Manila time. Task runs include both scheduled and manual console executions. Long-running entries are flagged using each task's overlap timeout plus a five-minute margin; this indicates a possible stalled run rather than proving that its process is still alive.
+
+Accounting reminder failures are persisted separately because a failed SMTP transaction does not create a delivered reminder row. Workflow failures retain their attempts and next retry time in the delivery queue. Recurring failures identify the schedule/source request and do not stop the remaining schedules from generating. Successful retries resolve matching issues. Inactive linked accounts/stores/providers block recurring generation without advancing those schedules; their count is shown separately from schedules ready for generation.
+
+**Queue retry now** is admin-only and brings a waiting failed workflow email forward to the next delivery run. It does not send from the web request, reset attempt counts, or override recipient preferences, request status, or revision-cycle checks. Retry requests record the acting admin. Accounting reminders continue to retry on the next daily reminder run while eligible. Mail-server acceptance is not a guarantee of inbox delivery. The health API exposes sanitized messages, never SMTP passwords, raw exception output, or the existing delivery-error field.
+
+The page refreshes every 30 seconds while visible. The server must still run `php artisan schedule:run` every minute. On Windows, the existing setup script is `scripts/install-automation-schedule.ps1`; it requires MySQL, network access and its Windows user to remain logged in. Viewing the page does not install or activate that task.

@@ -7,6 +7,7 @@ use App\Models\NotificationSetting;
 use App\Notifications\InternetSoaReminder;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
+use App\Services\AutomationMonitor;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -16,6 +17,11 @@ class SendInternetSoaReminders extends Command
     protected $description = 'Email Accounting about unvouchered Internet SOAs due within 15 days';
 
     public function handle(): int
+    {
+        return AutomationMonitor::run($this->getName(), fn () => $this->executeAutomation());
+    }
+
+    private function executeAutomation(): int
     {
         if (in_array(config('mail.default'), ['log', 'array'], true)) {
             $this->error('Reminders were not sent: configure a delivery mailer in .env. Log/array mail is never marked as delivered.');
@@ -40,15 +46,19 @@ class SendInternetSoaReminders extends Command
                                     DB::table('internet_soa_reminders')->where('id', $delivery->id)->update(['sent_at' => now()]);
                                     return true;
                                 });
+                                AutomationMonitor::resolve("reminder:".'internet-soa'.":".$renewal->id.":".$recipient['email']);
                                 if ($delivered) $sent++;
                             } catch (Throwable $error) {
                                 $failed++;
+                                AutomationMonitor::issue("reminder:".'internet-soa'.":".$renewal->id.":".$recipient['email'], 'Accounting reminder failed. The next daily reminder run will retry eligible requests.',
+                                    ['module' => 'internet-soa', 'request_id' => $renewal->id, 'recipient' => $recipient['email']]);
                                 report($error);
                                 $this->error('Reminder failed for record '.$renewal->id.', recipient '.$recipient['email'].'. It remains eligible for retry.');
                             }
                         }
                 }
             });
+        AutomationMonitor::metrics(['sent' => $sent, 'failed' => $failed]);
         $this->info("Sent: $sent; failed: $failed.");
         return $failed ? self::FAILURE : self::SUCCESS;
     }

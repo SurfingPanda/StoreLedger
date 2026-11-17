@@ -54,6 +54,8 @@ class AuthController extends Controller
                 'userRecords' => route('users.records'),
                 'directory' => route('directory'),
                 'directoryRecords' => route('directory.records'),
+                'automationHealth' => route('automation-health'),
+                'automationHealthRecords' => route('automation-health.records'),
             ],
         ]]);
     }

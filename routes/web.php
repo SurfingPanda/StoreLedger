@@ -8,6 +8,7 @@ use App\Http\Controllers\BillingSoaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\DirectoryController;
+use App\Http\Controllers\AutomationHealthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +30,12 @@ Route::middleware(['auth', 'active'])->group(function () {
         abort_unless(!empty($snapshot['attachment_path']) && \Illuminate\Support\Facades\Storage::disk('local')->exists($snapshot['attachment_path']), 404);
         return \Illuminate\Support\Facades\Storage::disk('local')->download($snapshot['attachment_path'], $snapshot['attachment_name'], ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store']);
     })->name('request-revisions.attachment');
+    Route::get('/automation-health', function (Request $request, AuthController $auth) {
+        abort_unless($request->user()->role === 'admin', 403);
+        return $auth->page($request, 'automation-health');
+    })->name('automation-health');
+    Route::get('/automation-health/records', [AutomationHealthController::class, 'index'])->name('automation-health.records');
+    Route::post('/automation-health/emails/{delivery}/retry', [AutomationHealthController::class, 'retry'])->whereNumber('delivery');
     Route::get('/directory', fn (Request $request, AuthController $auth) => $auth->page($request, 'directory'))->name('directory');
     Route::get('/directory/records', [DirectoryController::class, 'index'])->name('directory.records');
     Route::post('/directory/{kind}/{id?}', [DirectoryController::class, 'save'])->whereIn('kind', ['stores', 'suppliers', 'accounts'])->whereNumber('id');

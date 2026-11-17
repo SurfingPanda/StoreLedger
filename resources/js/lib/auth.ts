@@ -1,12 +1,12 @@
 export type AppData = {
   assets: { mascot: string; logo: string };
-  page: 'directory' | 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'pos-voucher' | 'internet-soa' | 'internet-voucher' | 'electricity' | 'rental' | 'water' | 'water-voucher' | 'electricity-voucher' | 'rental-voucher' | 'settings' | 'users';
+  page: 'automation-health' | 'directory' | 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'pos-voucher' | 'internet-soa' | 'internet-voucher' | 'electricity' | 'rental' | 'water' | 'water-voucher' | 'electricity-voucher' | 'rental-voucher' | 'settings' | 'users';
   renewalId?: number;
   email: string;
   loggedOut?: boolean;
   token: string;
   user: { name: string; email: string; role: string } | null;
-  urls: Record<'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'dashboardRecords' | 'dashboardActivity' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'electricity' | 'electricityRecords' | 'rental' | 'rentalRecords' | 'water' | 'waterRecords' | 'settings' | 'notificationSettings' | 'users' | 'userRecords' | 'directory' | 'directoryRecords', string>;
+  urls: Record<'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'dashboardRecords' | 'dashboardActivity' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'electricity' | 'electricityRecords' | 'rental' | 'rentalRecords' | 'water' | 'waterRecords' | 'settings' | 'notificationSettings' | 'users' | 'userRecords' | 'directory' | 'directoryRecords' | 'automationHealth' | 'automationHealthRecords', string>;
 };
 
 export type DuplicateBill = { id: number; store_name: string; provider: string | null; billing_period: string; amount: string; status: string; detail_url: string };
