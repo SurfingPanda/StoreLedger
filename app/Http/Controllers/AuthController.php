@@ -36,6 +36,8 @@ class AuthController extends Controller
                 'sendResetLink' => route('password.email'),
                 'resetPassword' => route('password.update'),
                 'dashboard' => route('dashboard'),
+                'dashboardRecords' => route('dashboard.records'),
+                'dashboardActivity' => route('dashboard.activity'),
                 'pos' => route('utak-pos'),
                 'posRecords' => route('utak-pos.records'),
                 'internetSoa' => route('internet-soa'),

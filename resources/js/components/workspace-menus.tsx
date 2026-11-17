@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell, ChevronDown, LogOut, Settings } from 'lucide-react';
 import type { AppData } from '@/lib/auth';
+import { RecentActivity } from '@/pages/dashboard';
 
-export default function WorkspaceMenus({ data, roleLabel, busy, logout, sample, read, markRead }: {
+export default function WorkspaceMenus({ data, roleLabel, busy, logout }: {
   data: AppData; roleLabel: string; busy: boolean; logout: () => Promise<void>;
-  sample: boolean; read: boolean; markRead: () => void;
 }) {
   const [open, setOpen] = useState<'notifications' | 'account' | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -34,22 +34,11 @@ export default function WorkspaceMenus({ data, roleLabel, busy, logout, sample, 
   }}>
     <div className="topbar-menu-anchor">
       <button ref={bell} className="notification-button" aria-label="Notifications" aria-expanded={open === 'notifications'} aria-controls="notification-dropdown" onClick={() => setOpen(open === 'notifications' ? null : 'notifications')}>
-        <Bell size={19} />{sample && !read && <span />}
+        <Bell size={19} />
       </button>
       {open === 'notifications' && <section id="notification-dropdown" className="topbar-dropdown notification-dropdown" aria-label="Notifications">
-        <div className="dropdown-heading"><strong>Notifications</strong><button disabled={!sample || read} onClick={markRead}>Mark all as read</button></div>
-        <div className="notification-scroll">
-          {sample ? <>
-            <p className="notification-preview-label">Sample updates · Live notifications are not connected</p>
-            {[
-              { title: 'Voucher processed', detail: 'Accounting has processed a voucher and sent it to Finance for payment.' },
-              { title: 'Payment completed', detail: 'Finance has recorded a payment. RSO can review the completed transaction.' },
-            ].map(item => <article className={`notification-row ${read ? 'notification-read' : ''}`} key={item.title}>
-              <span className="notification-unread" aria-label={read ? 'Read' : 'Unread'} />
-              <div><strong>{item.title}</strong><p>{item.detail}</p><small>Sample notification</small></div>
-            </article>)}
-          </> : <div className="notification-empty"><Bell size={24} /><strong>No notifications yet</strong><p>You're all caught up.</p></div>}
-        </div>
+        <div className="dropdown-heading"><strong>Recent activity</strong></div>
+        <div className="notification-scroll"><RecentActivity data={data} /></div>
       </section>}
     </div>
     <div className="topbar-menu-anchor">
