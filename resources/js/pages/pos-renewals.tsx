@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { post, RequestError, type AppData } from '@/lib/auth';
 import { requestModule } from '@/lib/request-module';
+import { showSuccess } from '@/lib/alerts';
 
 type ExtraFilters = { period: string; date_from: string; date_to: string; amount_min: string; amount_max: string };
 const defaultFilters: ExtraFilters = { period: 'all', date_from: '', date_to: '', amount_min: '', amount_max: '' };
@@ -36,6 +37,7 @@ export default function PosRenewals({ data }: { data: AppData }) {
   const [saveError, setSaveError] = useState('');
   const [duplicates, setDuplicates] = useState<DuplicateBill[]>([]);
   const [success, setSuccess] = useState('');
+  const [saveConfirmation, setSaveConfirmation] = useState('');
   const [records, setRecords] = useState<Records | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -65,6 +67,12 @@ export default function PosRenewals({ data }: { data: AppData }) {
     return () => controller.abort();
   }, [recordsUrl, isSoa, page, search, statusFilter, sort, direction, extraFilters, revision]);
 
+  useEffect(() => {
+    if (open || !saveConfirmation) return;
+    setSaveConfirmation('');
+    void showSuccess(isSoa ? 'SOA saved successfully' : 'Renewal saved successfully', saveConfirmation);
+  }, [open, saveConfirmation, isSoa]);
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (savingRef.current) return;
@@ -72,6 +80,7 @@ export default function PosRenewals({ data }: { data: AppData }) {
     try {
       const values = new FormData(event.currentTarget);
       const result = await post<{ message: string }>(recordsUrl, values);
+      setSaveConfirmation(result.message);
       setOpen(false); setSuccess(result.message); setPage(1); setSearch(''); setQuery(''); setStatusFilter('awaiting_voucher'); setExtraFilters(defaultFilters); setDraftFilters(defaultFilters); setRevision(value => value + 1);
     } catch (error) {
       if (error instanceof RequestError) {
