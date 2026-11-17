@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bell, ChevronDown, LogOut, Settings } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Settings, X } from 'lucide-react';
 import type { AppData } from '@/lib/auth';
 import { RecentActivity } from '@/pages/dashboard';
 
@@ -33,11 +33,11 @@ export default function WorkspaceMenus({ data, roleLabel, busy, logout }: {
     if (!event.currentTarget.contains(event.relatedTarget as Node)) setOpen(null);
   }}>
     <div className="topbar-menu-anchor">
-      <button ref={bell} className="notification-button" aria-label="Notifications" aria-expanded={open === 'notifications'} aria-controls="notification-dropdown" onClick={() => setOpen(open === 'notifications' ? null : 'notifications')}>
+      <button ref={bell} className="notification-button" aria-label="Recent activity" aria-expanded={open === 'notifications'} aria-controls="notification-dropdown" onClick={() => setOpen(open === 'notifications' ? null : 'notifications')}>
         <Bell size={19} />
       </button>
-      {open === 'notifications' && <section id="notification-dropdown" className="topbar-dropdown notification-dropdown" aria-label="Notifications">
-        <div className="dropdown-heading"><strong>Recent activity</strong></div>
+      {open === 'notifications' && <section id="notification-dropdown" className="topbar-dropdown notification-dropdown" aria-label="Recent activity">
+        <div className="dropdown-heading"><div><strong>Recent activity</strong><p>Latest request and payment updates</p></div><button type="button" className="activity-close" aria-label="Close recent activity" onClick={() => { setOpen(null); bell.current?.focus(); }}><X size={16} /></button></div>
         <div className="notification-scroll"><RecentActivity data={data} /></div>
       </section>}
     </div>
