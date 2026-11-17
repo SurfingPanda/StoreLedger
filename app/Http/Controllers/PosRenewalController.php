@@ -161,6 +161,8 @@ class PosRenewalController extends Controller
             'voucher_action_at' => now(),
             'voucher_reference' => $status === 'vouchered' ? ($data['voucher_reference'] ?? null) : null,
         ]);
+            if ($updated) \App\Services\SecurityAudit::record('billing', $status === 'vouchered' ? 'voucher.processed' : 'request.cancelled',
+                $posRenewal->fresh(), \App\Services\SecurityAudit::clean($current->getAttributes()), \App\Services\SecurityAudit::clean($posRenewal->fresh()->getAttributes()));
             if ($updated && $status === 'vouchered') WorkflowNotifications::voucherProcessed($posRenewal->fresh());
             return $updated;
         });

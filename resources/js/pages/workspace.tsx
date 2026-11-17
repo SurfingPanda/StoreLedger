@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Activity, ArrowRight, Building2, ChevronRight, Droplets, LayoutDashboard, Menu, Monitor, PanelLeftClose, PanelLeftOpen, Settings, UsersRound, Wifi, ShieldCheck, X, Zap } from 'lucide-react';
 import NotificationSettings from '@/pages/notification-settings';
+import SecurityAudit from '@/pages/security-audit';
 import AutomationHealth from '@/pages/automation-health';
 import Directory from '@/pages/directory';
 import Users from '@/pages/users';
@@ -18,6 +19,24 @@ const modules = [
   { name: 'Water' as Module, icon: Droplets }, { name: 'UTAK POS' as Module, icon: Monitor },
 ];
 export default function Workspace({ data }: { data: AppData }) {
+  const sidebarElement = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    root.classList.add('workspace-document');
+    body.classList.add('workspace-document');
+    window.scrollTo(0, 0);
+    const sidebarPanel = sidebarElement.current;
+    const stopSidebarScroll = (event: Event) => event.preventDefault();
+    sidebarPanel?.addEventListener('wheel', stopSidebarScroll, { passive: false });
+    sidebarPanel?.addEventListener('touchmove', stopSidebarScroll, { passive: false });
+    return () => {
+      root.classList.remove('workspace-document');
+      body.classList.remove('workspace-document');
+      sidebarPanel?.removeEventListener('wheel', stopSidebarScroll);
+      sidebarPanel?.removeEventListener('touchmove', stopSidebarScroll);
+    };
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const active: Module = (data.page === 'utak-pos' || data.page === 'pos-voucher') ? 'UTAK POS' : (data.page === 'rental' || data.page === 'rental-voucher') ? 'Rental' : (data.page === 'electricity' || data.page === 'electricity-voucher') ? 'Electricity' : (data.page === 'water' || data.page === 'water-voucher') ? 'Water' : 'All modules';
@@ -42,7 +61,7 @@ export default function Workspace({ data }: { data: AppData }) {
   }
   return <div className={`admin-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
     {sidebar && <button className="sidebar-shade" aria-label="Close navigation" onClick={() => setSidebar(false)} />}
-    <aside className={`admin-sidebar ${sidebar ? 'sidebar-open' : ''}`} aria-label="Main navigation">
+    <aside ref={sidebarElement} className={`admin-sidebar ${sidebar ? 'sidebar-open' : ''}`} aria-label="Main navigation">
       <div className="sidebar-brand"><Brand logo={data.assets.logo} /><button className="mobile-close" onClick={() => setSidebar(false)} aria-label="Close navigation"><X size={19} /></button></div>
       <div className="workspace-label"><span className="workspace-initial">BW</span><div>Operations workspace<small>{roleLabel}</small></div><ShieldCheck size={15} /></div>
       <nav className="sidebar-nav">
@@ -52,19 +71,21 @@ export default function Workspace({ data }: { data: AppData }) {
         <p className="nav-caption modules-caption">MONITORING</p>
         {modules.map(({ name, icon: Icon }) => <button key={name} className={`nav-item ${active === name ? 'nav-active' : ''}`} aria-current={active === name ? 'page' : undefined} title={name} aria-label={name} onClick={() => navigate(name)}><Icon size={18} /><span className="nav-label">{name}</span><ChevronRight size={13} className="nav-chevron" /></button>)}
         <a href={data.urls.internetSoa} title="Internet SOA Monitoring" aria-label="Internet SOA Monitoring" className={`nav-item ${(data.page === 'internet-soa' || data.page === 'internet-voucher') ? 'nav-active' : ''}`} aria-current={(data.page === 'internet-soa' || data.page === 'internet-voucher') ? 'page' : undefined}><Wifi size={18} /><span className="nav-label">Internet SOA Monitoring</span><ChevronRight size={13} className="nav-chevron" /></a>
-        {['admin', 'accounting'].includes(data.user?.role ?? '') && <><p className="nav-caption modules-caption">{data.user?.role === 'admin' ? 'ADMINISTRATION' : 'WORKSPACE SETTINGS'}</p>{data.user?.role === 'admin' && <a href={data.urls.users} title="Users & access" aria-label="Users & access" className={`nav-item ${data.page === 'users' ? 'nav-active' : ''}`} aria-current={data.page === 'users' ? 'page' : undefined}><UsersRound size={18} /><span className="nav-label">Users & access</span></a>}{data.user?.role === 'admin' && <a href={data.urls.automationHealth} title="Automation health" aria-label="Automation health" className={`nav-item ${data.page === 'automation-health' ? 'nav-active' : ''}`} aria-current={data.page === 'automation-health' ? 'page' : undefined}><Activity size={18} /><span className="nav-label">Automation health</span></a>}<a href={data.urls.settings} title="Settings" aria-label="Settings" className={`nav-item ${data.page === 'settings' ? 'nav-active' : ''}`} aria-current={data.page === 'settings' ? 'page' : undefined}><Settings size={18} /><span className="nav-label">Settings</span></a></>}
+        {['admin', 'accounting'].includes(data.user?.role ?? '') && <><p className="nav-caption modules-caption">{data.user?.role === 'admin' ? 'ADMINISTRATION' : 'WORKSPACE SETTINGS'}</p>{data.user?.role === 'admin' && <a href={data.urls.users} title="Users & access" aria-label="Users & access" className={`nav-item ${data.page === 'users' ? 'nav-active' : ''}`} aria-current={data.page === 'users' ? 'page' : undefined}><UsersRound size={18} /><span className="nav-label">Users & access</span></a>}{data.user?.role === 'admin' && <a href={data.urls.securityAudit} title="Security audit log" aria-label="Security audit log" className={`nav-item ${data.page === 'security-audit' ? 'nav-active' : ''}`} aria-current={data.page === 'security-audit' ? 'page' : undefined}><ShieldCheck size={18} /><span className="nav-label">Security audit log</span></a>}{data.user?.role === 'admin' && <a href={data.urls.automationHealth} title="Automation health" aria-label="Automation health" className={`nav-item ${data.page === 'automation-health' ? 'nav-active' : ''}`} aria-current={data.page === 'automation-health' ? 'page' : undefined}><Activity size={18} /><span className="nav-label">Automation health</span></a>}<a href={data.urls.settings} title="Settings" aria-label="Settings" className={`nav-item ${data.page === 'settings' ? 'nav-active' : ''}`} aria-current={data.page === 'settings' ? 'page' : undefined}><Settings size={18} /><span className="nav-label">Settings</span></a></>}
       </nav>
       <div className="sidebar-process"><span className="nav-caption">ONE CONNECTED PROCESS</span><div><span>IT</span><ArrowRight size={12} /><span>Accounting</span></div><div><span>Finance</span><ArrowRight size={12} /><span>RSO</span></div><p>From voucher to payment,<br />everyone stays in the loop.</p></div>
       <div className="sidebar-account"><span className="account-avatar">{name.slice(0, 1).toUpperCase()}</span><div><strong>{data.user?.name}</strong><small>{roleLabel} workspace</small></div></div>
     </aside>
 
     <div className="admin-body">
-      <header className="admin-topbar"><div className="breadcrumb"><button className="desktop-sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Minimize sidebar'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Minimize sidebar'}>{collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}</button><button className="mobile-menu" aria-label="Open navigation" onClick={() => setSidebar(true)}><Menu size={21} /></button><span>Workspace</span><ChevronRight size={13} /><strong>{data.page === 'automation-health' ? 'Automation health' : data.page === 'directory' ? 'Stores & suppliers' : data.page === 'users' ? 'Users & access' : data.page === 'settings' ? 'Settings' : (data.page === 'internet-soa' || data.page === 'internet-voucher') ? 'Internet SOA Monitoring' : active === 'All modules' ? 'Dashboard' : active}</strong></div><div className="topbar-actions"><span className="admin-access"><ShieldCheck size={14} />{roleLabel} access</span><span className="topbar-separator" /><WorkspaceMenus data={data} roleLabel={roleLabel} busy={busy} logout={logout} /></div></header>
+      <header className="admin-topbar"><div className="breadcrumb"><button className="desktop-sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Minimize sidebar'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Minimize sidebar'}>{collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}</button><button className="mobile-menu" aria-label="Open navigation" onClick={() => setSidebar(true)}><Menu size={21} /></button><span>Workspace</span><ChevronRight size={13} /><strong>{data.page === 'security-audit' ? 'Security audit log' : data.page === 'automation-health' ? 'Automation health' : data.page === 'directory' ? 'Stores & suppliers' : data.page === 'users' ? 'Users & access' : data.page === 'settings' ? 'Settings' : (data.page === 'internet-soa' || data.page === 'internet-voucher') ? 'Internet SOA Monitoring' : active === 'All modules' ? 'Dashboard' : active}</strong></div><div className="topbar-actions"><span className="admin-access"><ShieldCheck size={14} />{roleLabel} access</span><span className="topbar-separator" /><WorkspaceMenus data={data} roleLabel={roleLabel} busy={busy} logout={logout} /></div></header>
+      <div className="workspace-scroll-region" id="workspace-scroll-region" tabIndex={-1} aria-label="Workspace content">
       <main className="admin-content">
-        {data.page === 'automation-health' ? <AutomationHealth data={data} /> : data.page === 'directory' ? <Directory data={data} /> : data.page === 'users' ? <Users data={data} /> : data.page === 'settings' ? <NotificationSettings data={data} /> : ['pos-voucher', 'internet-voucher', 'water-voucher', 'electricity-voucher', 'rental-voucher'].includes(data.page) ? <PosVoucher key={data.page} data={data} /> : ['utak-pos', 'internet-soa', 'water', 'electricity', 'rental'].includes(data.page) ? <PosRenewals key={data.page} data={data} /> : <Dashboard data={data} />}
+        {data.page === 'security-audit' ? <SecurityAudit data={data} /> : data.page === 'automation-health' ? <AutomationHealth data={data} /> : data.page === 'directory' ? <Directory data={data} /> : data.page === 'users' ? <Users data={data} /> : data.page === 'settings' ? <NotificationSettings data={data} /> : ['pos-voucher', 'internet-voucher', 'water-voucher', 'electricity-voucher', 'rental-voucher'].includes(data.page) ? <PosVoucher key={data.page} data={data} /> : ['utak-pos', 'internet-soa', 'water', 'electricity', 'rental'].includes(data.page) ? <PosRenewals key={data.page} data={data} /> : <Dashboard data={data} />}
         {error && <div className="form-alert" role="alert">{error}</div>}
         <footer className="dashboard-footer"><span>BW Superbakeshop · Rental & renewal management</span><span>One workspace. Every detail accounted for.</span></footer>
       </main>
+      </div>
     </div>
   </div>;
 }

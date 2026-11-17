@@ -53,7 +53,7 @@ class UserManagementController extends Controller
             'role' => ['required', Rule::in(User::ROLES)], 'password' => ['required', 'confirmed', Password::min(12), 'max:128'],
         ]);
         $user = new User(collect($data)->only(['name', 'email', 'password'])->all());
-        $user->role = $data['role']; $user->is_active = true; $user->save();
+        $user->role = $data['role']; $user->is_active = true; DB::transaction(fn () => $user->save());
         return response()->json(['message' => 'Account created. Share the login details with the user securely.'], 201);
     }
 

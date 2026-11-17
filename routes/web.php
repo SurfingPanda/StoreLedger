@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\AutomationHealthController;
+use App\Http\Controllers\SecurityAuditController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +31,11 @@ Route::middleware(['auth', 'active'])->group(function () {
         abort_unless(!empty($snapshot['attachment_path']) && \Illuminate\Support\Facades\Storage::disk('local')->exists($snapshot['attachment_path']), 404);
         return \Illuminate\Support\Facades\Storage::disk('local')->download($snapshot['attachment_path'], $snapshot['attachment_name'], ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store']);
     })->name('request-revisions.attachment');
+    Route::get('/security-audit', function (Request $request, AuthController $auth) {
+        abort_unless($request->user()->role === 'admin', 403);
+        return response($auth->page($request, 'security-audit'))->header('Cache-Control', 'private, no-store');
+    })->name('security-audit');
+    Route::get('/security-audit/records', [SecurityAuditController::class, 'index'])->name('security-audit.records');
     Route::get('/automation-health', function (Request $request, AuthController $auth) {
         abort_unless($request->user()->role === 'admin', 403);
         return $auth->page($request, 'automation-health');

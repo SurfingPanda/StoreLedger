@@ -122,6 +122,7 @@ class AutomationHealthController extends Controller
             abort_if($row->sent_at || $row->attempts < 1 || !$row->next_attempt_at || CarbonImmutable::parse($row->next_attempt_at) <= now(), 409, 'This email is already sent or ready for the next delivery run. Refresh its status.');
             DB::table('workflow_mail_deliveries')->where('id', $delivery)->update(['next_attempt_at' => now(), 'updated_at' => now()]);
             DB::table('automation_retry_requests')->insert(['delivery_id' => $delivery, 'user_id' => $request->user()->id, 'created_at' => now(), 'updated_at' => now()]);
+            \App\Services\SecurityAudit::record('automation', 'email.retry_requested', metadata: ['delivery_id' => $delivery]);
             return response()->json(['message' => 'Retry queued for the next delivery run. The scheduler must be running; no email was sent by this button.']);
         });
     }

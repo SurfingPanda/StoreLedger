@@ -56,6 +56,8 @@ class AuthController extends Controller
                 'directoryRecords' => route('directory.records'),
                 'automationHealth' => route('automation-health'),
                 'automationHealthRecords' => route('automation-health.records'),
+                'securityAudit' => route('security-audit'),
+                'securityAuditRecords' => route('security-audit.records'),
             ],
         ]]);
     }
@@ -71,6 +73,7 @@ class AuthController extends Controller
         $key = 'login:'.hash('sha256', $credentials['email'].'|'.$request->ip());
 
         if (RateLimiter::tooManyAttempts($key, 5)) {
+            \App\Services\SecurityAudit::record('authentication', 'auth.sign_in_throttled', metadata: ['attempted_email' => $credentials['email']], outcome: 'denied', anonymous: true);
             return response()->json(['message' => 'Too many attempts. Please try again in '.RateLimiter::availableIn($key).' seconds.'], 429);
         }
 
@@ -100,6 +103,7 @@ class AuthController extends Controller
     public function sendResetLink(Request $request): JsonResponse
     {
         $data = $request->validate(['email' => ['required', 'email', 'max:254']]);
+        \App\Services\SecurityAudit::record('authentication', 'auth.password_reset_requested', metadata: ['attempted_email' => Str::lower(trim($data['email']))], anonymous: true);
         Password::sendResetLink(['email' => Str::lower(trim($data['email'])), 'is_active' => true]);
 
         return response()->json(['message' => 'If an account exists for that email, a password reset link has been sent. Check your inbox and spam folder.']);
@@ -115,12 +119,15 @@ class AuthController extends Controller
         $data['email'] = Str::lower(trim($data['email']));
         $data['is_active'] = true;
         $status = Password::reset($data, function (User $user, string $password): void {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($user, $password) {
             $user->forceFill(['password' => $password, 'remember_token' => Str::random(60), 'session_version' => $user->session_version + 1])->save();
             \Illuminate\Support\Facades\DB::table('sessions')->where('user_id', $user->id)->delete();
             event(new PasswordReset($user));
+            });
         });
 
         if ($status !== Password::PASSWORD_RESET) {
+            \App\Services\SecurityAudit::record('authentication', 'auth.password_reset_failed', metadata: ['attempted_email' => $data['email']], outcome: 'failure', anonymous: true);
             throw ValidationException::withMessages(['email' => 'This reset link is invalid or has expired. Please request a new one.']);
         }
 

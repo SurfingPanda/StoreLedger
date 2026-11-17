@@ -166,6 +166,8 @@ class InternetSoaController extends Controller
             'voucher_action_at' => now(),
             'voucher_reference' => $status === 'vouchered' ? ($data['voucher_reference'] ?? null) : null,
         ]);
+            if ($updated) \App\Services\SecurityAudit::record('billing', $status === 'vouchered' ? 'voucher.processed' : 'request.cancelled',
+                $internetSoa->fresh(), \App\Services\SecurityAudit::clean($current->getAttributes()), \App\Services\SecurityAudit::clean($internetSoa->fresh()->getAttributes()));
             if ($updated && $status === 'vouchered') WorkflowNotifications::voucherProcessed($internetSoa->fresh());
             return $updated;
         });

@@ -178,6 +178,8 @@ class BillingSoaController extends Controller
             'voucher_action_at' => now(),
             'voucher_reference' => $status === 'vouchered' ? ($data['voucher_reference'] ?? null) : null,
         ]);
+            if ($updated) \App\Services\SecurityAudit::record('billing', $status === 'vouchered' ? 'voucher.processed' : 'request.cancelled',
+                $billingSoa->fresh(), \App\Services\SecurityAudit::clean($current->getAttributes()), \App\Services\SecurityAudit::clean($billingSoa->fresh()->getAttributes()));
             if ($updated && $status === 'vouchered') WorkflowNotifications::voucherProcessed($billingSoa->fresh());
             return $updated;
         });

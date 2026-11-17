@@ -33,7 +33,7 @@ class CreateUser extends Command
             return self::FAILURE;
         }
         $user = new User(collect($data)->only('name', 'email', 'password')->all());
-        $user->forceFill(['role' => $data['role']])->save();
+        \App\Services\SecurityAudit::console(fn () => \Illuminate\Support\Facades\DB::transaction(fn () => $user->forceFill(['role' => $data['role']])->save()));
         $this->info('Account created. You can now sign in.');
         return self::SUCCESS;
     }
