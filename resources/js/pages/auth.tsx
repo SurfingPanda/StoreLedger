@@ -131,7 +131,7 @@ export default function AuthPage({ data }: { data: AppData }) {
       {['back', 'front'].map(layer => <svg key={layer} className={`footer-wave footer-wave-${layer}`} viewBox="0 0 2880 100" preserveAspectRatio="none" aria-hidden="true">
         {[0, 1440].map(offset => <path key={offset} transform={`translate(${offset} 0)`} d="M0 40C120 15 240 15 360 40S600 65 720 40S960 15 1080 40S1320 65 1440 40V100H0Z" fill="currentColor" />)}
       </svg>)}
-      <span>© {new Date().getFullYear()} BW Superbakeshop</span>
+      <span>© {new Date().getFullYear()} Eljin-Arvin</span>
     </footer>
   </main>;
 }
