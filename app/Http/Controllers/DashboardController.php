@@ -43,7 +43,7 @@ class DashboardController extends Controller
         $data = $request->validate([
             'period' => ['sometimes', 'in:30,90,all'],
             'module' => ['sometimes', 'in:all,utak-pos,internet-soa,water,electricity,rental'],
-            'status' => ['sometimes', 'in:all,awaiting_voucher,vouchered,paid,cancelled'],
+            'status' => ['sometimes', 'in:all,awaiting_soa,awaiting_voucher,needs_revision,vouchered,paid,cancelled'],
             'search' => ['nullable', 'string', 'max:150'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
@@ -56,15 +56,17 @@ class DashboardController extends Controller
         }
         $today = now('Asia/Manila')->toDateString();
         $summary = (clone $base)->selectRaw("COUNT(*) as total_count,
+            SUM(CASE WHEN status = 'needs_revision' THEN 1 ELSE 0 END) as needs_revision_count,
+            SUM(CASE WHEN status = 'awaiting_soa' THEN 1 ELSE 0 END) as awaiting_soa_count,
             SUM(CASE WHEN status = 'awaiting_voucher' THEN 1 ELSE 0 END) as pending_count,
             SUM(CASE WHEN status = 'vouchered' THEN 1 ELSE 0 END) as awaiting_payment_count,
             SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_count,
-            SUM(CASE WHEN status IN ('awaiting_voucher','vouchered') THEN amount ELSE 0 END) as outstanding_amount,
-            SUM(CASE WHEN status IN ('awaiting_voucher','vouchered') AND due_date < ? THEN 1 ELSE 0 END) as overdue_count,
-            SUM(CASE WHEN status IN ('awaiting_voucher','vouchered') AND due_date < ? THEN amount ELSE 0 END) as overdue_amount", [$today, $today])->first();
+            SUM(CASE WHEN status IN ('awaiting_soa','awaiting_voucher','needs_revision','vouchered') THEN amount ELSE 0 END) as outstanding_amount,
+            SUM(CASE WHEN status IN ('awaiting_soa','awaiting_voucher','needs_revision','vouchered') AND due_date < ? THEN 1 ELSE 0 END) as overdue_count,
+            SUM(CASE WHEN status IN ('awaiting_soa','awaiting_voucher','needs_revision','vouchered') AND due_date < ? THEN amount ELSE 0 END) as overdue_amount", [$today, $today])->first();
         $summary = collect((array) $summary)->map(fn ($value, $key) => str_ends_with($key, '_amount') ? number_format((float) ($value ?? 0), 2, '.', '') : (int) $value)->all();
         $breakdown = (clone $base)->where('status', '!=', 'cancelled')->selectRaw('module, COUNT(*) as total_count, SUM(amount) as amount')->groupBy('module')->get();
-        $due = (clone $base)->whereIn('status', ['awaiting_voucher', 'vouchered'])->orderBy('due_date')->orderBy('module')->orderBy('id')->limit(5)->get()->map(fn ($row) => $this->present($row));
+        $due = (clone $base)->whereIn('status', ['awaiting_soa', 'awaiting_voucher', 'needs_revision', 'vouchered'])->orderBy('due_date')->orderBy('module')->orderBy('id')->limit(5)->get()->map(fn ($row) => $this->present($row));
         $register = clone $base;
         if (($data['status'] ?? 'all') !== 'all') $register->where('status', $data['status']);
         if (!empty($data['search'])) $register->where('store_name', 'like', '%'.addcslashes($data['search'], '%_\\').'%');

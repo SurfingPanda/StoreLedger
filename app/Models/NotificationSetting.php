@@ -31,7 +31,7 @@ class NotificationSetting extends Model
                 'notifiable' => Notification::route('mail', $email),
             ]);
         }
-        return User::where('role', $role)->get()->map(fn ($user) => [
+        return User::where('role', $role)->where('is_active', true)->get()->map(fn ($user) => [
             'email' => $user->email, 'user_id' => $user->id, 'notifiable' => $user,
         ]);
     }

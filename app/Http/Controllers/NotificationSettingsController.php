@@ -13,18 +13,18 @@ class NotificationSettingsController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        abort_unless($request->user()->role === 'admin', 403);
+        abort_unless(in_array($request->user()->role, ['admin', 'accounting'], true), 403);
         return response()->json(['settings' => collect(NotificationSetting::EVENTS)->map(function ($role, $event) {
             $setting = NotificationSetting::find($event);
             return ['event' => $event, 'mode' => $setting?->mode ?? 'role', 'emails' => $setting?->emails ?? [],
-                'role' => $role, 'role_emails' => \App\Models\User::where('role', $role)->pluck('email')->all(),
+                'role' => $role, 'role_emails' => \App\Models\User::where('role', $role)->where('is_active', true)->pluck('email')->all(),
                 'resolved_emails' => NotificationSetting::recipients($event)->pluck('email')->all()];
         })->values(), 'mail_configured' => config('mail.default') === 'smtp' && filled(config('mail.mailers.smtp.username')) && filled(config('mail.mailers.smtp.password'))]);
     }
 
     public function store(Request $request): JsonResponse
     {
-        abort_unless($request->user()->role === 'admin', 403);
+        abort_unless(in_array($request->user()->role, ['admin', 'accounting'], true), 403);
         $data = $request->validate([
             'settings' => ['required', 'array', 'size:4'],
             'settings.*.event' => ['required', Rule::in(array_keys(NotificationSetting::EVENTS)), 'distinct'],

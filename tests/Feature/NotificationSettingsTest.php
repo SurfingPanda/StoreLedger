@@ -14,15 +14,29 @@ class NotificationSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_accounting_can_view_and_save_notification_recipients(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'accounting']));
+        $this->withoutVite()->get('/settings')->assertOk();
+        $this->getJson('/settings/notifications')->assertOk()->assertJsonCount(4, 'settings');
+        $settings = $this->settings();
+        $settings[0]['mode'] = 'custom';
+        $settings[0]['emails'] = ['accounting-updates@example.com'];
+        $this->postJson('/settings/notifications', ['settings' => $settings])->assertOk();
+        $this->assertDatabaseCount('notification_settings', 4);
+        $this->assertSame(['accounting-updates@example.com'], NotificationSetting::find('accounting_voucher')->emails);
+        $this->getJson('/settings/notifications')->assertOk()->assertJsonPath('settings.0.mode', 'custom');
+    }
+
     private function settings(): array
     {
         return collect(NotificationSetting::EVENTS)->map(fn ($role, $event) => ['event' => $event, 'mode' => 'role', 'emails' => []])->values()->all();
     }
 
-    public function test_settings_are_admin_only(): void
+    public function test_other_roles_cannot_access_settings(): void
     {
         $this->get('/settings')->assertRedirect('/login');
-        foreach (['accounting', 'finance', 'rso', 'it'] as $role) {
+        foreach (['finance', 'rso', 'it'] as $role) {
             $this->actingAs(User::factory()->create(['role' => $role]));
             $this->get('/settings')->assertForbidden();
             $this->getJson('/settings/notifications')->assertForbidden();

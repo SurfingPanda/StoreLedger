@@ -1,16 +1,18 @@
 export type AppData = {
   assets: { mascot: string; logo: string };
-  page: 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'pos-voucher' | 'internet-soa' | 'internet-voucher' | 'electricity' | 'rental' | 'water' | 'water-voucher' | 'electricity-voucher' | 'rental-voucher' | 'settings';
+  page: 'directory' | 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'pos-voucher' | 'internet-soa' | 'internet-voucher' | 'electricity' | 'rental' | 'water' | 'water-voucher' | 'electricity-voucher' | 'rental-voucher' | 'settings' | 'users';
   renewalId?: number;
   email: string;
   loggedOut?: boolean;
   token: string;
   user: { name: string; email: string; role: string } | null;
-  urls: Record<'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'dashboardRecords' | 'dashboardActivity' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'electricity' | 'electricityRecords' | 'rental' | 'rentalRecords' | 'water' | 'waterRecords' | 'settings' | 'notificationSettings', string>;
+  urls: Record<'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'dashboardRecords' | 'dashboardActivity' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'electricity' | 'electricityRecords' | 'rental' | 'rentalRecords' | 'water' | 'waterRecords' | 'settings' | 'notificationSettings' | 'users' | 'userRecords' | 'directory' | 'directoryRecords', string>;
 };
 
+export type DuplicateBill = { id: number; store_name: string; provider: string | null; billing_period: string; amount: string; status: string; detail_url: string };
+
 export class RequestError extends Error {
-  constructor(message: string, public errors: Record<string, string[]> = {}) { super(message); }
+  constructor(message: string, public errors: Record<string, string[]> = {}, public duplicates: DuplicateBill[] = []) { super(message); }
 }
 
 export async function post<T = { redirect?: string; message?: string }>(url: string, data: Record<string, unknown> | FormData): Promise<T> {
@@ -30,7 +32,7 @@ export async function post<T = { redirect?: string; message?: string }>(url: str
     const message = response.status >= 500 ? 'We couldn’t connect to your workspace. Please try again shortly.'
       : response.status === 429 ? (result.message || 'Too many requests. Please wait a minute and try again.')
       : (result.message || 'Something went wrong. Please try again.');
-    throw new RequestError(message, result.errors ?? {});
+    throw new RequestError(message, result.errors ?? {}, result.duplicates ?? []);
   }
   return result as T;
 }

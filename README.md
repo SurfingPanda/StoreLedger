@@ -149,3 +149,56 @@ Admin accounts have a **Settings** sidebar item at `/settings`. The page saves i
 The existing UTAK Accounting reminder command reads these preferences. Its delivery ledger deduplicates by renewal/date/email even when the recipient switches between a role account and a custom address. No mail is sent just by saving settings. SMTP credentials and the OS scheduler must still be enabled as described above.
 
 Finance and RSO recipient preferences are ready for their future workflow handlers; their UI explicitly marks the delivery triggers as pending. This update does not yet implement voucher/payment transitions or send those workflow emails. Settings do not grant a mailbox holder app access; accounts are provisioned separately.
+
+
+## Automatic notifications and recurring billing
+
+Processing a voucher captures separate Finance payment-request and RSO voucher-update emails. Recording payment captures the RSO payment-update email. Recipients come from Settings, including custom recipients and notifications-off mode. The scheduler delivers captured messages each minute, tracks delivery, and retries failures without undoing Accounting or Finance actions. Finance prompts are skipped if payment is already complete. Existing requests are not backfilled with email events.
+
+Admins can open any request and use **Recurring billing** to choose monthly, quarterly, half-yearly, or yearly billing, the expected amount, and how many days before the due date to create each new request. Schedules can be paused or resumed. Generation runs hourly. The original due date anchors the cycle so month-end dates do not drift when February is shorter. Each cycle is uniquely identified and will not be generated twice. Missed past cycles are generated too, at most twelve per schedule per run.
+
+Generated UTAK POS requests enter the pending voucher queue. Generated SOA requests start as **Awaiting SOA** with no attachment copied from the preceding month. An admin opens **Attach SOA**, uploads the current statement, and confirms the actual amount before Accounting can process the voucher. Existing records and previous statements are unchanged.
+
+For local Windows automation, run `powershell -ExecutionPolicy Bypass -File scripts/install-automation-schedule.ps1` once from a normal terminal. The task runs `php artisan schedule:run` every minute while the configured Windows user is logged in; MySQL and the network must be available. For a hosted installation, configure the host scheduler to run `php artisan schedule:run` once per minute. No separate queue worker is needed for workflow mail.
+
+Manual commands: `php artisan billing:generate-recurring` and `php artisan notifications:deliver-workflow`. These perform real actions; do not run the delivery command with live credentials unless sending pending emails is intended. RSO recipients must exist or be configured as custom addresses before RSO emails can be captured. Configure `APP_URL` to the deployed application URL so email links work outside the local computer.
+
+
+## Account management
+
+Admins can open **Users & access** from the sidebar or account menu to create accounts, edit names/emails/roles, reset passwords, and disable or enable accounts. The page supports name/email search, role/status filters, summary counts, and pagination. New or reset passwords require at least 12 characters; share those credentials securely with the user. Existing passwords remain valid until changed.
+
+Disabling an account retains its identity and history, blocks login and password recovery, revokes access, and excludes the account from registered-team reminder recipients. Explicit custom notification addresses remain controlled by notification settings. Sensitive account changes invalidate existing sessions, remembered logins, and outstanding password-reset tokens. Admins cannot disable their own account, change their own role, or remove the last active admin. Self email/password changes require signing in again. Last sign-in tracking begins with the next successful login after this update.
+
+
+### Duplicate bill detection
+
+All five billing modules check the store, provider/landlord, and billing month before creating a request, processing a voucher, or recording payment. Matching ignores case and repeated whitespace, ignores the amount and due day, includes paid requests, and excludes cancelled requests. Modules are checked separately. The entry forms require provider and billing month; older records without a billing month use their due-date month, and a missing provider is treated as a possible match. API clients may omit these fields for backwards compatibility, in which case the same conservative fallback applies.
+
+The queues flag possible duplicates, and request details and rejected submissions link to matching records. Admins can correct provider/month details on unpaid requests; changes are recorded as comments. Accounting or an admin can cancel an unpaid, already-vouchered duplicate from its details page, retaining its original voucher information and cancellation timestamp. Normal duplicate requests awaiting a voucher can also be cancelled using the existing Accounting action. Paid records cannot be cancelled or relabelled through these actions.
+
+A shared database lock serializes creation, voucher, payment, and duplicate-resolution checks. Recurring schedules inherit their source provider and billing-month offset and skip cycles already entered manually. No existing requests are automatically deleted, changed, or cancelled.
+
+
+### Store and supplier directory
+
+Open **Stores & suppliers** in the sidebar. All signed-in teams can view the directory; admins can add/edit stores, suppliers and billing accounts or mark them inactive. Store IDs are unique business codes backed by permanent numeric database IDs. A store can have an active RSO user assigned; supplier contacts and per-module account numbers and billing cycles (1, 3, 6 or 12 months) are maintained separately. A used billing account cannot move between stores, suppliers or modules; create another account instead. Account-number changes apply to future bills and do not rewrite the numbers recorded on old bills.
+
+The migration links existing bills by normalized store name and supplier name, generates store codes, and imports known supplier accounts without guessing missing account numbers, cycles or RSO assignments. Review these entries and complete their setup. New bill forms select saved store accounts. Legacy API requests using names remain supported; ambiguous store names require an explicit saved account. Inactive stores, suppliers or accounts cannot be used on new bills and their recurring schedules wait without advancing.
+
+Store history uses store IDs, preserving continuity across name changes and keeping separate same-named stores apart. Existing bill names remain historical snapshots. Duplicate checks use linked store/supplier/account identity, falling back conservatively for missing old details. Saved billing cycles prefill the recurring-schedule form; schedules still require explicit activation. RSO assignment is shown in bills and the directory; email delivery continues to follow the notification recipient settings.
+
+
+### Returns, corrections and reopening
+
+Each request details page supports a controlled revision workflow:
+
+- Accounting can return pending vouchers to the requester/admin, with a required reason.
+- Finance can return a processed voucher to Accounting for a voucher-reference correction, or to the requester/admin for bill corrections.
+- Returned requests use **Needs revision**, leave processing/payment queues, and remain visible through list and dashboard status filters. Accounting can escalate a Finance return to the requester/admin when bill details need changing.
+- The requester or an admin can correct bill/account details, due date, amount, billing month and the SOA, then provide a correction note and resubmit. The previous voucher is invalidated and Accounting approval is required again. Accounting can correct only the voucher reference on an Accounting-assigned return and resubmit it to Finance.
+- Admins may reopen unpaid cancelled requests with a reason; they enter revision and require Accounting approval again. Paid requests cannot be reopened, returned or edited through these actions. The metadata shortcut is restricted to requests still awaiting a statement or voucher.
+
+The correction history records actors, times, reasons and before/after values. Replaced SOAs are retained and downloadable from their revision event. Revisions never change the original creator. Permission and state checks, a shared database lock, and request versions prevent unauthorized transitions or stale submissions. Browser voucher/payment actions send the current version; older API clients may omit it only before the first revision cycle. Revision actions always require a version.
+
+Workflow emails are keyed by review cycle so a corrected voucher can notify Finance/RSO again. Jobs from superseded cycles are suppressed. No historical requests are automatically returned or reopened by the migration.

@@ -17,7 +17,7 @@ class InternetSoaReminder extends Notification
         return (new MailMessage)
             ->subject('Internet SOA reminder: '.$this->renewal->store_name)
             ->greeting('Hello '.($notifiable->name ?? 'Accounting team').',')
-            ->line('A Internet SOA is coming due and is awaiting Accounting voucher processing.')
+            ->line('An Internet SOA is coming due and is awaiting Accounting voucher processing.')
             ->line('Store: '.$this->renewal->store_name)
             ->line('Due date: '.$this->renewal->due_date->format('F j, Y'))
             ->line('Amount: PHP '.number_format((float) $this->renewal->amount, 2))

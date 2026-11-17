@@ -53,6 +53,7 @@ class BillingVoucherDetailTest extends TestCase
         $this->module = $module;
         $record = $this->renewal();
         $other = $this->renewal();
+        $other->update(['billing_period' => '2026-11']);
         $accountant = User::factory()->create(['role' => 'accounting']);
         $this->actingAs($accountant)->postJson(route($this->module.'.comments', $record), ['body' => 'Checked the billing details.', 'user_id' => $other->created_by])
             ->assertCreated()->assertJsonPath('comment.author.name', $accountant->name);

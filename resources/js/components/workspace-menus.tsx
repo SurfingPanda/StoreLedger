@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bell, ChevronDown, LogOut, Settings, X } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Settings, UsersRound, X } from 'lucide-react';
 import type { AppData } from '@/lib/auth';
 import { RecentActivity } from '@/pages/dashboard';
 
@@ -48,7 +48,8 @@ export default function WorkspaceMenus({ data, roleLabel, busy, logout }: {
       </button>
       {open === 'account' && <section id="account-dropdown" className="topbar-dropdown account-dropdown" aria-label="Account options">
         <div className="account-dropdown-heading"><strong>{data.user?.name}</strong><small>{data.user?.email}</small></div>
-        {data.user?.role === 'admin' && <a href={data.urls.settings}><Settings size={16} />Settings</a>}
+        {data.user?.role === 'admin' && <a href={data.urls.users}><UsersRound size={16} />Users & access</a>}
+        {['admin', 'accounting'].includes(data.user?.role ?? '') && <a href={data.urls.settings}><Settings size={16} />Settings</a>}
         <button className="account-signout" disabled={busy} onClick={() => { setOpen(null); void logout(); }}><LogOut size={16} />{busy ? 'Signing out…' : 'Sign out'}</button>
       </section>}
     </div>

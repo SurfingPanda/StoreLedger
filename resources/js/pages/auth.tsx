@@ -64,9 +64,6 @@ export default function AuthPage({ data }: { data: AppData }) {
       const url = login ? data.urls.login : reset ? data.urls.resetPassword : data.urls.sendResetLink;
       const result = await post(url, { ...values, email: String(values.email ?? '').trim(), remember, ...(reset ? { token: data.token } : {}) });
       if (result.redirect) {
-        if (login) {
-          await showSuccess('Signed in successfully', 'Opening your workspace...');
-        }
         window.location.assign(result.redirect);
         return;
       }

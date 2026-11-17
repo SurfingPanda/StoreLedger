@@ -11,7 +11,11 @@ class InternetSoa extends Model
 {
     protected $hidden = ['attachment_path'];
 
-    protected $fillable = ['store_name', 'due_date', 'amount'];
+    protected $fillable = ['store_id', 'billing_account_id', 'provider', 'billing_period', 'store_name', 'due_date', 'amount'];
+
+    public function store() { return $this->belongsTo(Store::class); }
+    public function supplier() { return $this->belongsTo(Supplier::class); }
+    public function billingAccount() { return $this->belongsTo(StoreBillingAccount::class, 'billing_account_id'); }
 
     public function payment(): HasOne
     {
@@ -35,6 +39,6 @@ class InternetSoa extends Model
 
     protected function casts(): array
     {
-        return ['due_date' => 'date:Y-m-d', 'amount' => 'decimal:2', 'voucher_action_at' => 'datetime'];
+        return ['due_date' => 'date:Y-m-d', 'amount' => 'decimal:2', 'voucher_action_at' => 'datetime', 'duplicate_cancelled_at' => 'datetime', 'returned_at' => 'datetime', 'workflow_version' => 'integer', 'review_cycle' => 'integer'];
     }
 }

@@ -12,6 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectUsersTo('/dashboard');
+        $middleware->alias(['active' => \App\Http\Middleware\EnsureActiveAccount::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

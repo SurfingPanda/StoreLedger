@@ -50,6 +50,10 @@ class AuthController extends Controller
                 'waterRecords' => route('water.records'),
                 'settings' => route('settings'),
                 'notificationSettings' => route('settings.notifications'),
+                'users' => route('users'),
+                'userRecords' => route('users.records'),
+                'directory' => route('directory'),
+                'directoryRecords' => route('directory.records'),
             ],
         ]]);
     }
@@ -68,13 +72,15 @@ class AuthController extends Controller
             return response()->json(['message' => 'Too many attempts. Please try again in '.RateLimiter::availableIn($key).' seconds.'], 429);
         }
 
-        if (!Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']], $request->boolean('remember'))) {
+        if (!Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password'], 'is_active' => true], $request->boolean('remember'))) {
             RateLimiter::hit($key, 60);
             throw ValidationException::withMessages(['email' => 'The email or password is incorrect. Please try again.']);
         }
 
         RateLimiter::clear($key);
         $request->session()->regenerate();
+        $request->session()->put('auth_version', $request->user()->session_version);
+        $request->user()->forceFill(['last_login_at' => now()])->save();
 
         return response()->json(['redirect' => $request->session()->pull('url.intended', route(in_array($request->user()->role, ['accounting', 'finance'], true) ? 'utak-pos' : 'dashboard'))]);
     }
@@ -92,7 +98,7 @@ class AuthController extends Controller
     public function sendResetLink(Request $request): JsonResponse
     {
         $data = $request->validate(['email' => ['required', 'email', 'max:254']]);
-        Password::sendResetLink(['email' => Str::lower(trim($data['email']))]);
+        Password::sendResetLink(['email' => Str::lower(trim($data['email'])), 'is_active' => true]);
 
         return response()->json(['message' => 'If an account exists for that email, a password reset link has been sent. Check your inbox and spam folder.']);
     }
@@ -105,8 +111,10 @@ class AuthController extends Controller
             'password' => ['required', 'confirmed', PasswordRule::min(12), 'max:128'],
         ]);
         $data['email'] = Str::lower(trim($data['email']));
+        $data['is_active'] = true;
         $status = Password::reset($data, function (User $user, string $password): void {
-            $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
+            $user->forceFill(['password' => $password, 'remember_token' => Str::random(60), 'session_version' => $user->session_version + 1])->save();
+            \Illuminate\Support\Facades\DB::table('sessions')->where('user_id', $user->id)->delete();
             event(new PasswordReset($user));
         });
 

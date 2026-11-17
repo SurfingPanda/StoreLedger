@@ -1,5 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { CheckCircle2, CreditCard, Download, LoaderCircle } from 'lucide-react';
+import DuplicateBills from '@/components/duplicate-bills';
+import { type DuplicateBill } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { post, RequestError } from '@/lib/auth';
@@ -8,10 +10,11 @@ export type Payment = { amount: string; paid_on: string; method: string; referen
 const money = (amount: string) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(amount));
 const methods: Record<string, string> = { bank_transfer: 'Bank transfer', cash: 'Cash', check: 'Check', e_wallet: 'E-wallet', other: 'Other' };
 
-export default function PosPayment({ payment, canPay, amount, base, disabled, onSaved }: { payment: Payment | null; canPay: boolean; amount: string; base: string; disabled: boolean; onSaved: (message: string) => void }) {
+export default function PosPayment({ payment, canPay, amount, base, disabled, onSaved, workflowVersion }: { workflowVersion: number; payment: Payment | null; canPay: boolean; amount: string; base: string; disabled: boolean; onSaved: (message: string) => void }) {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState('');
+  const [duplicates, setDuplicates] = useState<DuplicateBill[]>([]);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const form = useRef<HTMLFormElement>(null);
   const field = (name: string) => ({ 'aria-invalid': !!errors[name] || undefined, 'aria-describedby': errors[name] ? `payment-${name}-error` : undefined });
@@ -19,14 +22,14 @@ export default function PosPayment({ payment, canPay, amount, base, disabled, on
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (savingRef.current) return;
-    const payload = new FormData(event.currentTarget);
-    savingRef.current = true; setSaving(true); setError(''); setErrors({});
+    const payload = new FormData(event.currentTarget); payload.set('workflow_version', String(workflowVersion));
+    savingRef.current = true; setSaving(true); setError(''); setErrors({}); setDuplicates([]);
     try {
       const result = await post<{ message: string }>(`${base}/payment`, payload);
       onSaved(result.message);
     } catch (error) {
       if (error instanceof RequestError) {
-        setErrors(error.errors); setError(Object.keys(error.errors).length ? 'Please check the payment details below.' : error.message);
+        setDuplicates(error.duplicates); setErrors(error.errors); setError(Object.keys(error.errors).length ? 'Please check the payment details below.' : error.message);
         requestAnimationFrame(() => form.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus());
       } else setError('Could not confirm the payment. Please try again.');
     } finally { savingRef.current = false; setSaving(false); }
@@ -39,7 +42,7 @@ export default function PosPayment({ payment, canPay, amount, base, disabled, on
       <div><dt>Recorded by</dt><dd>{payment.recorded_by?.name ?? 'Unknown user'}</dd></div><div><dt>Date recorded</dt><dd>{new Date(payment.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</dd></div>
       {payment.notes && <div className="payment-notes"><dt>Payment notes</dt><dd>{payment.notes}</dd></div>}
     </dl><div className="payment-proof-link"><a className="soa-download" href={payment.proof_url}><Download size={16} />{payment.proof_name}</a></div></> : <form ref={form} className="payment-form" onSubmit={save} aria-busy={saving}>
-      {error && <div className="form-alert" role="alert">{error}</div>}
+      <DuplicateBills matches={duplicates} />{error && <div className="form-alert" role="alert">{error}</div>}
       <fieldset disabled={saving || disabled} className="soa-form-fields">
         <div className="payment-total"><span>AMOUNT TO RECORD</span><strong>{money(amount)}</strong><small>Full payment for this request</small></div>
         <div className="payment-entry-columns"><div><h3><span>1</span>Payment details</h3><p className="payment-step-hint">Use the date and reference from the completed transaction.</p><div className="payment-form-grid">

@@ -10,6 +10,8 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
+    public const ROLES = ['admin', 'it', 'accounting', 'finance', 'rso'];
+    protected $attributes = ['is_active' => true, 'session_version' => 1];
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
@@ -32,6 +34,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'session_version',
     ];
 
     /**
@@ -44,6 +47,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
+            'session_version' => 'integer',
+            'last_login_at' => 'datetime',
         ];
     }
 }
