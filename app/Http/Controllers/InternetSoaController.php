@@ -15,6 +15,7 @@ use App\Services\CurrentStatement;
 use App\Services\RequestRecordFilters;
 use App\Services\DuplicateBills;
 use App\Services\DirectoryLinks;
+use App\Services\TableSort;
 use App\Services\RequestRevisions;
 
 class InternetSoaController extends Controller
@@ -108,8 +109,7 @@ class InternetSoaController extends Controller
             'revisions_page' => ['nullable', 'integer', 'min:1'],
             'comments_page' => ['nullable', 'integer', 'min:1'],
         ]);
-        $history = DirectoryLinks::history($internetSoa)
-            ->with(['creator', 'voucherActor', 'payment.recordedBy'])->orderByDesc('due_date')->orderByDesc('id')
+        $history = TableSort::history(DirectoryLinks::history($internetSoa)->with(['creator', 'voucherActor', 'payment.recordedBy']), $request, 'due_date')
             ->paginate(10, ['*'], 'history_page');
         $history->through(function ($record) {
             if ($record->payment) {
@@ -184,7 +184,7 @@ class InternetSoaController extends Controller
             'search' => ['nullable', 'string', 'max:150'],
             'page' => ['nullable', 'integer', 'min:1'],
             'status' => ['sometimes', 'required', 'in:all,awaiting_soa,awaiting_voucher,needs_revision,processed,vouchered,paid,cancelled'],
-            'sort' => ['sometimes', 'required', 'in:id,store_name,due_date,amount,status,created_at'],
+            'sort' => ['sometimes', 'required', 'in:id,store_name,due_date,amount,status,created_at,attachment_name'],
             'direction' => ['sometimes', 'required', 'in:asc,desc'],
         ]);
         $data = array_merge($data, RequestRecordFilters::validate($request));
@@ -211,7 +211,7 @@ class InternetSoaController extends Controller
             $query->orderBy($sort, $direction);
         }
         if ($sort !== 'id') $query->orderBy('id', $direction);
-        $records = $query->paginate(15);
+        $records = $query->paginate($this->pageSize($request));
         $records->through(fn ($record) => array_merge($record->toArray(), ['duplicate_count' => count(DuplicateBills::matches($record)), 'detail_url' => route('internet-soa.detail', $record), 'attachment_url' => route('internet-soa.attachment', $record)]));
         $totals = InternetSoa::selectRaw('status, COUNT(*) as total, SUM(amount) as amount')->groupBy('status')->get()->keyBy('status');
         return response()->json(array_merge($records->toArray(), ['summary' => [

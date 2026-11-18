@@ -60,6 +60,94 @@ class DirectoryTest extends TestCase
         $this->withoutVite()->get('/directory')->assertOk()->assertViewHas('appData', fn ($data) => $data['page'] === 'directory');
     }
 
+    public function test_store_ownership_is_saved_updated_validated_and_returned(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $payload = ['code' => 'BW-OWN', 'name' => 'Ownership store', 'is_active' => true, 'ownership_type' => 'corporate_owned'];
+        $this->postJson('/directory/stores', $payload)->assertCreated()->assertJsonPath('record.ownership_type', 'corporate_owned');
+        $store = Store::firstOrFail();
+        $url = '/directory/stores/'.$store->id;
+        $this->postJson($url, array_replace($payload, ['ownership_type' => 'franchise']))
+            ->assertOk()->assertJsonPath('record.ownership_type', 'franchise');
+        $this->assertDatabaseHas('stores', ['id' => $store->id, 'ownership_type' => 'franchise']);
+        $this->getJson('/directory/records')->assertOk()->assertJsonPath('stores.0.ownership_type', 'franchise');
+        foreach (['invalid', '', null] as $ownership) {
+            $this->postJson($url, array_replace($payload, ['ownership_type' => $ownership]))
+                ->assertUnprocessable()->assertJsonValidationErrors('ownership_type');
+        }
+        unset($payload['ownership_type']);
+        $this->postJson($url, $payload)->assertOk()->assertJsonPath('record.ownership_type', 'franchise');
+        $this->assertSame('franchise', $store->fresh()->ownership_type);
+    }
+
+    public function test_ownership_migration_leaves_existing_stores_unclassified(): void
+    {
+        $migration = require database_path('migrations/2026_11_18_000001_add_ownership_type_to_stores.php');
+        $migration->down();
+        $store = $this->account()->store;
+        $migration->up();
+        $this->assertNull($store->fresh()->ownership_type);
+        $this->assertSame('BW Makati', $store->fresh()->name);
+    }
+
+    public function test_store_codes_have_independent_ownership_sequences_and_ignore_client_codes(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        foreach ([['corporate_owned', 'BW0001'], ['franchise', 'FR0001'], ['corporate_owned', 'BW0002'], ['franchise', 'FR0002']] as [$ownership, $code]) {
+            $this->postJson('/directory/stores', ['name' => 'Store '.$code, 'ownership_type' => $ownership, 'is_active' => true, 'code' => 'CUSTOM'])
+                ->assertCreated()->assertJsonPath('record.code', $code);
+        }
+        $this->postJson('/directory/stores', ['name' => 'Without manual code', 'ownership_type' => 'corporate_owned', 'is_active' => true])
+            ->assertCreated()->assertJsonPath('record.code', 'BW0003');
+        $this->postJson('/directory/stores', ['name' => 'Missing ownership', 'is_active' => true])
+            ->assertUnprocessable()->assertJsonValidationErrors('ownership_type');
+    }
+
+    public function test_directory_previews_actual_next_codes_without_consuming_them(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $this->account('water', 'BW0001');
+        for ($i = 0; $i < 2; $i++) {
+            $this->getJson('/directory/records')->assertOk()
+                ->assertJsonPath('next_store_codes.corporate_owned', 'BW0002')
+                ->assertJsonPath('next_store_codes.franchise', 'FR0001');
+        }
+        $this->postJson('/directory/stores', ['name' => 'New store', 'ownership_type' => 'corporate_owned', 'is_active' => true])
+            ->assertCreated()->assertJsonPath('record.code', 'BW0002');
+        $this->getJson('/directory/records')->assertOk()
+            ->assertJsonPath('next_store_codes.corporate_owned', 'BW0003')
+            ->assertJsonPath('next_store_codes.franchise', 'FR0001');
+    }
+
+    public function test_codes_skip_existing_ids_and_remain_stable_until_ownership_changes(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $existing = $this->account('water', 'BW0001')->store;
+        $payload = ['name' => 'New corporate store', 'ownership_type' => 'corporate_owned', 'is_active' => true];
+        $created = $this->postJson('/directory/stores', $payload)->assertCreated()->assertJsonPath('record.code', 'BW0002')->json('record');
+        $url = '/directory/stores/'.$created['id'];
+        $this->postJson($url, array_replace($payload, ['name' => 'Renamed', 'code' => 'MANUAL']))
+            ->assertOk()->assertJsonPath('record.code', 'BW0002');
+        $this->postJson($url, array_replace($payload, ['ownership_type' => 'franchise']))
+            ->assertOk()->assertJsonPath('record.code', 'FR0001')->assertJsonPath('record.id', $created['id']);
+        $this->postJson('/directory/stores', $payload)->assertCreated()->assertJsonPath('record.code', 'BW0003');
+        $this->assertSame('BW0001', $existing->fresh()->code);
+    }
+
+    public function test_store_code_migration_starts_after_existing_numbers(): void
+    {
+        $migration = require database_path('migrations/2026_11_18_000002_create_store_code_sequences.php');
+        $migration->down();
+        $this->account('water', 'BW0027');
+        $this->account('water', 'FR0009');
+        $migration->up();
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        foreach ([['corporate_owned', 'BW0028'], ['franchise', 'FR0010']] as [$ownership, $code]) {
+            $this->postJson('/directory/stores', ['name' => $code, 'ownership_type' => $ownership, 'is_active' => true])
+                ->assertCreated()->assertJsonPath('record.code', $code);
+        }
+    }
+
     #[DataProvider('modules')]
     public function test_history_and_duplicates_follow_store_ids_after_renames_and_exclude_other_same_named_stores(string $module): void
     {

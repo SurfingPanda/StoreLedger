@@ -1,6 +1,8 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Services\TableSort;
+
 use App\Models\SecurityAuditLog;
 use App\Services\SecurityAudit;
 use App\Services\RequestModule;
@@ -30,7 +32,8 @@ class SecurityAuditController extends Controller
         }
         if (!empty($data['date_from'])) $query->where('occurred_at', '>=', CarbonImmutable::parse($data['date_from'], 'Asia/Manila')->startOfDay()->setTimezone(config('app.timezone')));
         if (!empty($data['date_to'])) $query->where('occurred_at', '<=', CarbonImmutable::parse($data['date_to'], 'Asia/Manila')->endOfDay()->setTimezone(config('app.timezone')));
-        $records = $query->orderByDesc('id')->paginate(20)->through(function ($log) {
+        TableSort::apply($query, $request, ['occurred_at' => 'occurred_at', 'actor_name' => 'actor_name', 'event' => 'event', 'outcome' => 'outcome', 'target' => 'subject_type', 'ip_address' => 'ip_address'], 'occurred_at', 'desc');
+        $records = $query->paginate($this->pageSize($request, 20))->through(function ($log) {
             $row = $log->toArray();
             $row['detail_url'] = $log->record_id && array_key_exists($log->module ?? '', RequestModule::LABELS) ? route($log->module.'.detail', $log->record_id) : null;
             return $row;

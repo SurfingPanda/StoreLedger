@@ -1,5 +1,7 @@
+import { useTableSort } from '@/components/table-sort';
+import { TablePagination } from '@/components/table-presentation';
 ﻿import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, ClipboardList, LoaderCircle, Wifi, Zap, Building2, Droplets, Plus, Search } from 'lucide-react';
+import { CalendarDays, CheckCircle2, CircleAlert, ClipboardList, LoaderCircle, Wifi, Zap, Building2, Droplets, Plus, Search } from 'lucide-react';
 import AttachmentPreview from '@/components/attachment-preview';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,20 +34,22 @@ export default function SoaMonitoring({ data }: { data: AppData }) {
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const sorting = useTableSort('due_date', 'asc', () => setPage(1));
+  const [perPage, setPerPage] = useState(15);
   const [revision, setRevision] = useState(0);
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setLoadError('');
     const url = new URL(module.url);
-    url.searchParams.set('page', String(page)); url.searchParams.set('search', search);
+    url.searchParams.set('per_page', String(perPage)); url.searchParams.set('page', String(page)); url.searchParams.set('sort', sorting.sort); url.searchParams.set('direction', sorting.direction); url.searchParams.set('search', search);
     fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: controller.signal })
       .then(async response => { if (!response.ok) throw new Error(response.status === 401 ? 'Your session has expired. Refresh to sign in again.' : 'Could not load SOA records. Please try again.'); return response.json() as Promise<Records>; })
       .then(result => setRecords(result))
       .catch(error => { if (!controller.signal.aborted) setLoadError(error.message || 'Could not load SOA records.'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [module.url, page, search, revision]);
+  }, [module.url, page, search, revision, perPage, sorting.sort, sorting.direction]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -71,10 +75,10 @@ export default function SoaMonitoring({ data }: { data: AppData }) {
     <section className="register-panel pos-register"><div className="section-heading"><div><h2>{module.label} SOA records</h2><p>Saved records, ordered by due date.</p></div>{records && !loading && <span className="record-count">{records.total} {records.total === 1 ? 'record' : 'records'}</span>}</div>
       <form className="pos-search" onSubmit={event => { event.preventDefault(); setPage(1); setSearch(query.trim()); }}><label><Search size={16} /><input aria-label="Search by store name" placeholder="Search store name…" value={query} maxLength={150} onChange={event => setQuery(event.target.value)} /></label><Button variant="outline" size="sm" type="submit" disabled={loading}>Search</Button>{search && <button type="button" className="text-link" onClick={() => { setSearch(''); setQuery(''); setPage(1); }}>Clear</button>}</form>
       {loadError ? <div className="pos-load-error" role="alert"><CircleAlert size={20} /><p>{loadError}</p><Button variant="outline" size="sm" onClick={() => setRevision(value => value + 1)}>Try again</Button></div> : <div className="voucher-table-scroll" aria-busy={loading}>
-        <table className="ledger-table voucher-table"><thead><tr><th scope="col">RECORD</th><th scope="col">STORE NAME</th><th scope="col">DUE DATE</th><th scope="col" className="amount-column">AMOUNT</th><th scope="col">SOA ATTACHMENT</th><th scope="col">DATE ADDED</th></tr></thead><tbody>{!loading && records?.data.map(record => <tr key={record.id}><td><span className="pos-record-id">{module.prefix}-{String(record.id).padStart(5, '0')}</span></td><td><strong className="pos-store-name">{record.store_name}</strong></td><td><span className="pos-date"><CalendarDays size={14} />{date(record.due_date)}</span></td><td className="amount-column">{currency(record.amount)}</td><td><AttachmentPreview url={record.attachment_url} name={record.attachment_name} /></td><td>{date(record.created_at)}</td></tr>)}</tbody></table>
+        <table className="ledger-table voucher-table"><thead><tr>{sorting.header('id', 'RECORD')}{sorting.header('store_name', 'STORE NAME')}{sorting.header('due_date', 'DUE DATE')}{sorting.header('amount', 'AMOUNT', true)}{sorting.header('attachment_name', 'SOA ATTACHMENT')}{sorting.header('created_at', 'DATE ADDED')}</tr></thead><tbody>{!loading && records?.data.map(record => <tr key={record.id}><td><span className="pos-record-id">{module.prefix}-{String(record.id).padStart(5, '0')}</span></td><td><strong className="pos-store-name">{record.store_name}</strong></td><td><span className="pos-date"><CalendarDays size={14} />{date(record.due_date)}</span></td><td className="amount-column">{currency(record.amount)}</td><td><AttachmentPreview url={record.attachment_url} name={record.attachment_name} /></td><td>{date(record.created_at)}</td></tr>)}</tbody></table>
         {loading ? <div className="register-empty" role="status"><LoaderCircle className="animate-spin motion-reduce:animate-none" size={24} /><p>Loading SOA records…</p></div> : !records?.data.length && <div className="register-empty"><ClipboardList size={30} strokeWidth={1.4} /><h3>{search ? 'No matching stores' : 'Your first SOA starts here.'}</h3><p>{search ? 'Try another store name or clear your search.' : 'Add a store, amount, due date, and attach its statement of account.'}</p></div>}
       </div>}
-      <div className="table-footer"><span>{loading ? 'Loading records…' : loadError ? 'Records unavailable' : `Showing ${records?.from ?? 0}–${records?.to ?? 0} of ${records?.total ?? 0}`}</span><div className="pos-pagination"><button aria-label="Previous page" disabled={loading || !!loadError || page <= 1} onClick={() => setPage(value => value - 1)}><ChevronLeft size={16} /></button><span>Page {page} of {records?.last_page ?? 1}</span><button aria-label="Next page" disabled={loading || !!loadError || page >= (records?.last_page ?? 1)} onClick={() => setPage(value => value + 1)}><ChevronRight size={16} /></button></div></div>
+      <TablePagination page={page} lastPage={records?.last_page ?? 1} total={records?.total ?? 0} from={records?.from ?? 0} to={records?.to ?? 0} disabled={loading || !!loadError} onPage={setPage} perPage={perPage} onPerPage={setPerPage} status={loading ? 'Loading records...' : loadError ? 'Records unavailable' : undefined} />
     </section>
     <Dialog open={open} onOpenChange={value => { if (!savingRef.current) setOpen(value); }}><DialogContent className="pos-add-dialog"><span className="dialog-symbol"><Icon size={22} /></span><DialogTitle className="text-xl font-semibold">Add {module.label} SOA</DialogTitle><DialogDescription className="text-sm text-muted-foreground">Enter the store {module.label.toLowerCase()} billing details and attach its statement of account.</DialogDescription><form ref={form} onSubmit={save} aria-busy={saving}><fieldset disabled={saving} className="soa-form-fields">
       {saveError && <div className="form-alert" role="alert">{saveError}</div>}

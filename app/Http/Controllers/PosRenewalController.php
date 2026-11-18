@@ -15,6 +15,7 @@ use App\Services\CurrentStatement;
 use App\Services\RequestRecordFilters;
 use App\Services\DuplicateBills;
 use App\Services\DirectoryLinks;
+use App\Services\TableSort;
 use App\Services\RequestRevisions;
 
 class PosRenewalController extends Controller
@@ -103,8 +104,7 @@ class PosRenewalController extends Controller
             'revisions_page' => ['nullable', 'integer', 'min:1'],
             'comments_page' => ['nullable', 'integer', 'min:1'],
         ]);
-        $history = DirectoryLinks::history($posRenewal)
-            ->with(['creator', 'voucherActor', 'payment.recordedBy'])->orderByDesc('renewal_date')->orderByDesc('id')
+        $history = TableSort::history(DirectoryLinks::history($posRenewal)->with(['creator', 'voucherActor', 'payment.recordedBy']), $request, 'renewal_date')
             ->paginate(10, ['*'], 'history_page');
         $history->through(function ($record) {
             if ($record->payment) {
@@ -206,7 +206,7 @@ class PosRenewalController extends Controller
             $query->orderBy($sort, $direction);
         }
         if ($sort !== 'id') $query->orderBy('id', $direction);
-        $records = $query->paginate(15);
+        $records = $query->paginate($this->pageSize($request));
         $records->through(fn ($record) => array_merge($record->toArray(), ['duplicate_count' => count(DuplicateBills::matches($record)), 'detail_url' => route('utak-pos.detail', $record)]));
         $totals = PosRenewal::selectRaw('status, COUNT(*) as total, SUM(amount) as amount')->groupBy('status')->get()->keyBy('status');
         return response()->json(array_merge($records->toArray(), ['summary' => [

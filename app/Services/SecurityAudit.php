@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 class SecurityAudit
 {
     public const CATEGORIES = ['authentication', 'accounts', 'notifications', 'billing', 'directory', 'access', 'automation'];
-    public const FIELDS = ['id', 'name', 'email', 'role', 'is_active', 'event', 'mode', 'emails', 'code', 'assigned_rso_id',
+    public const FIELDS = ['id', 'name', 'email', 'role', 'is_active', 'event', 'mode', 'emails', 'code', 'ownership_type', 'assigned_rso_id',
         'store_id', 'supplier_id', 'billing_account_id', 'module', 'store_name', 'provider', 'account_number', 'billing_cycle_months',
         'billing_period', 'renewal_date', 'due_date', 'amount', 'status', 'voucher_reference', 'voucher_action_by', 'voucher_action_at',
         'workflow_version', 'review_cycle', 'revision_target', 'returned_by', 'returned_at', 'duplicate_cancelled_at',

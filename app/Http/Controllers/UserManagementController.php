@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\TableSort;
+
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,7 +40,8 @@ class UserManagementController extends Controller
         }
         if (($data['role'] ?? 'all') !== 'all') $query->where('role', $data['role']);
         if (($data['status'] ?? 'all') !== 'all') $query->where('is_active', $data['status'] === 'active');
-        $users = $query->select(['id', 'name', 'email', 'role', 'is_active', 'created_at', 'last_login_at'])->orderBy('name')->orderBy('id')->paginate(15);
+        TableSort::apply($query, $request, ['name' => 'name', 'role' => 'role', 'is_active' => 'is_active', 'last_login_at' => 'last_login_at', 'created_at' => 'created_at'], 'name', 'asc');
+        $users = $query->select(['id', 'name', 'email', 'role', 'is_active', 'created_at', 'last_login_at'])->paginate($this->pageSize($request));
         return response()->json(['users' => $users, 'summary' => [
             'total' => User::count(), 'active' => User::where('is_active', true)->count(),
             'disabled' => User::where('is_active', false)->count(), 'admins' => User::where('role', 'admin')->where('is_active', true)->count(),

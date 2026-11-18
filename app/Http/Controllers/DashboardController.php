@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\TableSort;
+
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -70,7 +72,8 @@ class DashboardController extends Controller
         $register = clone $base;
         if (($data['status'] ?? 'all') !== 'all') $register->where('status', $data['status']);
         if (!empty($data['search'])) $register->where('store_name', 'like', '%'.addcslashes($data['search'], '%_\\').'%');
-        $records = $register->orderBy('due_date')->orderBy('module')->orderBy('id')->paginate(15);
+        TableSort::apply($register, $request, ['store_name' => 'store_name', 'module' => 'module', 'due_date' => 'due_date', 'amount' => 'amount', 'status' => 'status'], 'due_date', 'asc', '', ['module', 'id']);
+        $records = $register->paginate($this->pageSize($request));
         $records->through(fn ($row) => $this->present($row));
         return response()->json(['summary' => $summary, 'breakdown' => $breakdown, 'due' => $due, 'records' => $records, 'updated_at' => now()->toIso8601String(), 'today' => $today]);
     }

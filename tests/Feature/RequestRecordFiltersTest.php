@@ -27,6 +27,20 @@ class RequestRecordFiltersTest extends TestCase
             $record->save();
         }
         $url = '/'.$module.'/records?status=all';
+        $first = $this->getJson($url.'&per_page=5&sort=amount&direction=asc')
+            ->assertOk()->assertJsonPath('per_page', 5)->assertJsonPath('total', 7)
+            ->assertJsonPath('last_page', 2)->assertJsonPath('from', 1)->assertJsonPath('to', 5)
+            ->assertJsonCount(5, 'data')->json('data');
+        $second = $this->getJson($url.'&per_page=5&page=2&sort=amount&direction=asc')
+            ->assertOk()->assertJsonPath('current_page', 2)->assertJsonPath('from', 6)
+            ->assertJsonPath('to', 7)->assertJsonCount(2, 'data')->json('data');
+        $this->assertEmpty(array_intersect(array_column($first, 'id'), array_column($second, 'id')));
+        $this->getJson($url.'&per_page=10')->assertOk()->assertJsonPath('last_page', 1)->assertJsonCount(7, 'data');
+        $this->getJson($url)->assertJsonPath('per_page', 15);
+        foreach (['0', '-1', '101', '1.5', 'invalid'] as $size) {
+            $this->getJson($url.'&per_page='.$size)->assertUnprocessable()->assertJsonValidationErrors('per_page');
+        }
+
         $this->getJson($url.'&period=overdue')->assertOk()->assertJsonPath('total', 1)->assertJsonPath('data.0.amount', '100.00');
         $this->getJson($url.'&period=next7')->assertJsonPath('total', 2);
         $this->getJson($url.'&period=next30')->assertJsonPath('total', 3);

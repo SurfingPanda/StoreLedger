@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\DirectoryLinks;
 use App\Services\DuplicateBills;
 use App\Services\RequestModule;
+use App\Services\StoreCodes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -22,7 +23,11 @@ class DirectoryController extends Controller
             'suppliers' => Supplier::orderBy('name')->get(),
             'accounts' => StoreBillingAccount::with(['store.assignedRso', 'supplier'])->orderBy('id')->get(),
             'rsos' => User::where('role', 'rso')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email']),
-        ]);
+            'next_store_codes' => [
+                'corporate_owned' => StoreCodes::preview('corporate_owned'),
+                'franchise' => StoreCodes::preview('franchise'),
+            ],
+        ])->header('Cache-Control', 'no-store');
     }
 
     public function save(Request $request, string $kind, ?int $id = null)
@@ -30,8 +35,10 @@ class DirectoryController extends Controller
         abort_unless($request->user()->role === 'admin', 403);
         $class = match ($kind) { 'stores' => Store::class, 'suppliers' => Supplier::class, 'accounts' => StoreBillingAccount::class, default => abort(404) };
         $rules = match ($kind) {
-            'stores' => ['code' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('stores')->ignore($id)],
-                'name' => ['required', 'string', 'max:150'], 'assigned_rso_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('role', 'rso')->where('is_active', true)]],
+            'stores' => ['code' => ['sometimes', 'string', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
+                'name' => ['required', 'string', 'max:150'],
+                'ownership_type' => [Rule::requiredIf(!$request->filled('code') && !$id || $request->exists('ownership_type')), Rule::in(['corporate_owned', 'franchise'])],
+                'assigned_rso_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('role', 'rso')->where('is_active', true)]],
             'suppliers' => ['name' => ['required', 'string', 'max:150'], 'email' => ['nullable', 'email', 'max:254'], 'phone' => ['nullable', 'string', 'max:60']],
             'accounts' => ['store_id' => ['required', 'integer', 'exists:stores,id'], 'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
                 'module' => ['required', Rule::in(array_keys(RequestModule::LABELS))], 'account_number' => ['nullable', 'string', 'max:100'],
@@ -42,7 +49,14 @@ class DirectoryController extends Controller
             DuplicateBills::lock();
             $record = $id ? $class::whereKey($id)->lockForUpdate()->firstOrFail() : new $class;
             if ($kind === 'stores') {
-                $data['code'] = strtoupper($data['code']);
+                if (isset($data['ownership_type'])) {
+                    $prefix = $data['ownership_type'] === 'corporate_owned' ? 'BW' : 'FR';
+                    $data['code'] = !$record->exists || $record->ownership_type !== $data['ownership_type'] || !preg_match('/^'.$prefix.'[0-9]{4,}$/', $record->code)
+                        ? StoreCodes::next($data['ownership_type']) : $record->code;
+                } else {
+                    // Retain compatibility with older directory integrations.
+                    $data['code'] = $record->exists ? $record->code : strtoupper($data['code']);
+                }
                 if (Store::where('code', $data['code'])->when($id, fn ($q) => $q->whereKeyNot($id))->exists()) throw ValidationException::withMessages(['code' => 'This store ID is already in use.']);
             }
             if ($kind === 'suppliers' && Supplier::where('name_key', DirectoryLinks::key($data['name']))->when($id, fn ($q) => $q->whereKeyNot($id))->exists()) {

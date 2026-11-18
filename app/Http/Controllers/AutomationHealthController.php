@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Models\RecurringSchedule;
 use App\Services\AutomationMonitor;
+use App\Services\TableSort;
 use App\Services\RequestModule;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -53,12 +54,15 @@ class AutomationHealthController extends Controller
             }
         });
         elseif ($runStatus !== 'all') $runs->where('status', $runStatus);
-        $runPage = $runs->orderByDesc('id')->paginate(15, ['*'], 'runs_page')->through(fn ($row) => $this->runRow($row));
+        $runPage = TableSort::apply($runs, $request, ['command' => 'command', 'started_at' => 'started_at', 'status' => 'status', 'duration_ms' => 'duration_ms', 'summary' => 'summary'], 'started_at', 'desc', 'runs_')->paginate($this->pageSize($request), ['*'], 'runs_page')->through(fn ($row) => $this->runRow($row));
         $emails = DB::table('workflow_mail_deliveries');
         $emailStatus = $data['email_status'] ?? 'pending';
         if ($emailStatus === 'sent') $emails->whereNotNull('sent_at');
         elseif ($emailStatus !== 'all') { $emails->whereNull('sent_at'); if ($emailStatus === 'retrying') $emails->where('attempts', '>', 0); }
-        $emailPage = $emails->orderByDesc('id')->paginate(15, ['id', 'module', 'request_id', 'event', 'email', 'attempts', 'next_attempt_at', 'sent_at', 'created_at', 'updated_at', 'review_cycle'], 'emails_page')
+        $emailPage = TableSort::apply($emails, $request, [
+            'id' => 'id', 'email' => 'email', 'request' => 'request_id', 'state' => DB::raw("CASE WHEN sent_at IS NOT NULL THEN 'Accepted by mail server' WHEN attempts > 0 AND next_attempt_at > '".$now->toDateTimeString()."' THEN 'Retry scheduled' WHEN attempts > 0 THEN 'Ready to retry' ELSE 'Queued' END"),
+            'attempts' => 'attempts', 'delivery_at' => DB::raw('COALESCE(sent_at, next_attempt_at)'),
+        ], 'id', 'desc', 'emails_')->paginate($this->pageSize($request), ['id', 'module', 'request_id', 'event', 'email', 'attempts', 'next_attempt_at', 'sent_at', 'created_at', 'updated_at', 'review_cycle'], 'emails_page')
             ->through(fn ($row) => $this->dates((array) $row) + ['detail_url' => $this->link($row->module, $row->request_id),
                 'can_retry' => !$row->sent_at && $row->attempts > 0 && $row->next_attempt_at && CarbonImmutable::parse($row->next_attempt_at) > $now,
                 'state' => $row->sent_at ? 'sent' : ($row->attempts > 0 ? ($row->next_attempt_at && CarbonImmutable::parse($row->next_attempt_at) > $now ? 'retry_scheduled' : 'ready_to_retry') : 'queued')]);
@@ -66,7 +70,7 @@ class AutomationHealthController extends Controller
         if (($data['command'] ?? 'all') !== 'all') $issues->where('command', $data['command']);
         $issueStatus = $data['issue_status'] ?? 'open';
         if ($issueStatus === 'open') $issues->whereNull('resolved_at'); elseif ($issueStatus === 'resolved') $issues->whereNotNull('resolved_at');
-        $issuePage = $issues->orderByDesc('last_seen_at')->orderByDesc('id')->paginate(15, ['id', 'command', 'module', 'request_id', 'schedule_id', 'recipient', 'message', 'occurrences', 'first_seen_at', 'last_seen_at', 'resolved_at'], 'issues_page')
+        $issuePage = TableSort::apply($issues, $request, ['command' => 'command', 'recipient' => 'recipient', 'last_seen_at' => 'last_seen_at', 'occurrences' => 'occurrences', 'resolved_at' => DB::raw("CASE WHEN resolved_at IS NULL THEN 'Open' ELSE 'Resolved' END")], 'last_seen_at', 'desc', 'issues_')->paginate($this->pageSize($request), ['id', 'command', 'module', 'request_id', 'schedule_id', 'recipient', 'message', 'occurrences', 'first_seen_at', 'last_seen_at', 'resolved_at'], 'issues_page')
             ->through(fn ($row) => $this->dates((array) $row) + ['detail_url' => $this->link($row->module, $row->request_id)]);
         $today = $now->setTimezone('Asia/Manila')->startOfDay()->setTimezone(config('app.timezone'))->toDateTimeString();
         $sentToday = DB::table('workflow_mail_deliveries')->where('sent_at', '>=', $today)->count();

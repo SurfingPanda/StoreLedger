@@ -1,3 +1,4 @@
+import { useTableSort } from '@/components/table-sort';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, CheckCircle2, ClipboardList, History, LoaderCircle, MessageSquare } from 'lucide-react';
 import AttachmentPreview from '@/components/attachment-preview';
@@ -14,7 +15,7 @@ import { post, RequestError, type AppData } from '@/lib/auth';
 import { requestModule } from '@/lib/request-module';
 
 type Person = { name: string; role: string };
-type Renewal = { workflow_version: number; billing_account_id: number | null; revision_target: string | null; revision_reason: string | null; returned_at: string | null; store_id: number | null; store: { code: string; name: string; assigned_rso: { name: string; email: string } | null } | null; account_number: string | null; billing_account: { billing_cycle_months: number | null } | null; duplicate_cancelled_at: string | null; provider: string | null; billing_period: string | null; id: number; store_name: string; amount: string; renewal_date: string; status: string; created_at: string; creator: Person | null; voucher_actor: Person | null; voucher_action_at: string | null; voucher_reference: string | null; detail_url?: string; payment: Payment | null; recurrence: Recurrence | null; recurring_schedule_id: number | null; due_date?: string; attachment_url?: string; attachment_name?: string };
+type Renewal = { workflow_version: number; billing_account_id: number | null; revision_target: string | null; revision_reason: string | null; returned_at: string | null; store_id: number | null; store: { code: string; name: string } | null; account_number: string | null; billing_account: { billing_cycle_months: number | null } | null; duplicate_cancelled_at: string | null; provider: string | null; billing_period: string | null; id: number; store_name: string; amount: string; renewal_date: string; status: string; created_at: string; creator: Person | null; voucher_actor: Person | null; voucher_action_at: string | null; voucher_reference: string | null; detail_url?: string; payment: Payment | null; recurrence: Recurrence | null; recurring_schedule_id: number | null; due_date?: string; attachment_url?: string; attachment_name?: string };
 type Comment = { id: number; body: string; created_at: string; author: Person | null };
 type Page<T> = { data: T[]; current_page: number; last_page: number; total: number };
 type Details = { revisions: RevisionHistory; revision_permissions: RevisionPermissions; duplicates: DuplicateBill[]; record: Renewal; history: Page<Renewal>; comments: Page<Comment> };
@@ -38,6 +39,7 @@ export default function PosVoucher({ data }: { data: AppData }) {
   const [success, setSuccess] = useState('');
   const [revision, setRevision] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
+  const historySort = useTableSort('date', 'desc', () => setHistoryPage(1));
   const [commentsPage, setCommentsPage] = useState(1);
   const [revisionsPage, setRevisionsPage] = useState(1);
   const [body, setBody] = useState('');
@@ -48,7 +50,7 @@ export default function PosVoucher({ data }: { data: AppData }) {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setLoadError('');
-    fetch(`${base}/details?history_page=${historyPage}&comments_page=${commentsPage}&revisions_page=${revisionsPage}`, { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: controller.signal })
+    fetch(`${base}/details?history_sort=${historySort.sort}&history_direction=${historySort.direction}&history_page=${historyPage}&comments_page=${commentsPage}&revisions_page=${revisionsPage}`, { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: controller.signal })
       .then(async response => {
         if (!response.ok) throw new Error(response.status === 404 ? 'This renewal could not be found.' : 'Could not load the voucher details. Refresh or try again.');
         return response.json() as Promise<Details>;
@@ -57,7 +59,7 @@ export default function PosVoucher({ data }: { data: AppData }) {
       .catch(error => { if (!controller.signal.aborted) setLoadError(error.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [base, isSoa, historyPage, commentsPage, revisionsPage, revision]);
+  }, [base, isSoa, historyPage, commentsPage, revisionsPage, revision, historySort.sort, historySort.direction]);
 
   async function submit(kind: 'comment' | 'process' | 'cancel') {
     if (busyRef.current) return;
@@ -85,7 +87,7 @@ export default function PosVoucher({ data }: { data: AppData }) {
         {record.status === 'awaiting_soa'  && <CurrentSoaForm amount={record.amount} base={base} canSubmit={canSubmitSoa} submitterLabel={rsoSubmission ? 'RSO or Admin' : 'Admin'} onSaved={message => { setSuccess(message); setRevision(value => value + 1); }} />}
     <PosPayment workflowVersion={record.workflow_version} payment={record.payment} canPay={finance && record.status === 'vouchered'} amount={record.amount} base={base} disabled={busy || loading} onSaved={message => { setSuccess(message); setError(''); setRevision(value => value + 1); document.getElementById('workspace-scroll-region')?.scrollTo({ top: 0, behavior: 'smooth' }); }} />
       <div>
-        <section id="renewal-details" className="register-panel voucher-detail-card"><div className="section-heading"><div><h2><ClipboardList size={18} />{isSoa ? 'SOA details' : 'Renewal details'}</h2><p>{prefix}-{String(record.id).padStart(5, '0')}</p></div></div><dl className="voucher-detail-fields"><div><dt>Store ID</dt><dd>{record.store?.code || 'Not linked'}{record.store && <small className="history-meta">Current name: {record.store.name}</small>}</dd></div><div><dt>Supplier account number</dt><dd>{record.account_number || 'Not recorded'}</dd></div><div><dt>Assigned RSO</dt><dd>{record.store?.assigned_rso?.name || 'Unassigned'}</dd></div><div><dt>Billing cycle</dt><dd>{record.billing_account?.billing_cycle_months ? `${record.billing_account.billing_cycle_months} month(s)` : 'Not configured'}</dd></div><div><dt>Provider / landlord</dt><dd>{record.provider || 'Not recorded'}</dd></div><div><dt>Billing month</dt><dd>{record.billing_period || record.renewal_date.slice(0, 7)}{!record.billing_period && ' (from due date)'}</dd></div>
+        <section id="renewal-details" className="register-panel voucher-detail-card"><div className="section-heading"><div><h2><ClipboardList size={18} />{isSoa ? 'SOA details' : 'Renewal details'}</h2><p>{prefix}-{String(record.id).padStart(5, '0')}</p></div></div><dl className="voucher-detail-fields"><div><dt>Store ID</dt><dd>{record.store?.code || 'Not linked'}{record.store && <small className="history-meta">Current name: {record.store.name}</small>}</dd></div><div><dt>Supplier account number</dt><dd>{record.account_number || 'Not recorded'}</dd></div><div><dt>Billing cycle</dt><dd>{record.billing_account?.billing_cycle_months ? `${record.billing_account.billing_cycle_months} month(s)` : 'Not configured'}</dd></div><div><dt>Provider / landlord</dt><dd>{record.provider || 'Not recorded'}</dd></div><div><dt>Billing month</dt><dd>{record.billing_period || record.renewal_date.slice(0, 7)}{!record.billing_period && ' (from due date)'}</dd></div>
           <div><dt>Store</dt><dd>{record.store_name}</dd></div><div><dt>{record.status === 'awaiting_soa' ? 'Expected amount (confirm against SOA)' : 'Amount'}</dt><dd>{money(record.amount)}</dd></div>
           <div><dt>{isSoa ? 'Due date' : 'Renewal date'}</dt><dd>{day(record.renewal_date)}</dd></div><div><dt>Status</dt><dd>{status(record.status)}</dd></div>
           <div><dt>Created by</dt><dd>{record.creator?.name ?? 'Unknown user'}</dd></div><div><dt>Date created</dt><dd>{time(record.created_at)}</dd></div>
@@ -122,7 +124,7 @@ export default function PosVoucher({ data }: { data: AppData }) {
       </section>
         <RevisionHistoryPanel history={details.revisions} disabled={loading || busy} onPage={setRevisionsPage} />
         <section id="renewal-history" className="register-panel voucher-history voucher-history-full"><div className="section-heading"><div><h2><History size={18} />{isSoa ? 'Store SOA history' : 'Store renewal history'}</h2><p>Voucher dates, payments and references linked to this store ID, including previous store names.</p></div><span className="record-count">{details.history.total} {details.history.total === 1 ? 'record' : 'records'}</span></div>
-          <div className="voucher-table-scroll" role="region" aria-label={isSoa ? 'Store SOA history' : 'Store renewal history'} tabIndex={0}><table className="ledger-table voucher-table voucher-audit-table"><thead><tr><th scope="col">RECORD / CREATED</th><th scope="col">{isSoa ? 'DUE DATE' : 'RENEWAL DATE'}</th><th scope="col" className="amount-column">AMOUNT</th><th scope="col">DATE VOUCHERED</th><th scope="col">DATE PAID / PAYMENT</th><th scope="col">STATUS</th></tr></thead><tbody>{details.history.data.map(row => <tr key={row.id} className={row.id === record.id ? 'voucher-current-row' : ''}>
+          <div className="voucher-table-scroll" role="region" aria-label={isSoa ? 'Store SOA history' : 'Store renewal history'} tabIndex={0}><table className="ledger-table voucher-table voucher-audit-table"><thead><tr>{historySort.header('id', 'RECORD / CREATED')}{historySort.header('date', isSoa ? 'DUE DATE' : 'RENEWAL DATE')}{historySort.header('amount', 'AMOUNT', true)}{historySort.header('voucher_action_at', 'DATE VOUCHERED')}{historySort.header('paid_on', 'DATE PAID / PAYMENT')}{historySort.header('status', 'STATUS')}</tr></thead><tbody>{details.history.data.map(row => <tr key={row.id} className={row.id === record.id ? 'voucher-current-row' : ''}>
             <td><a className="history-record-link" href={row.detail_url}>{prefix}-{String(row.id).padStart(5, '0')}</a>{row.id === record.id && <span className="history-current-tag">Current</span>}<small className="history-meta">Created {time(row.created_at)}</small><small className="history-meta">By {row.creator?.name ?? 'Unknown user'}</small></td>
             <td><strong className="history-date">{day(row.renewal_date)}</strong></td>
             <td className="amount-column">{money(row.amount)}</td>
