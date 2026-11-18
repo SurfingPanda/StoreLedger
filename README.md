@@ -226,3 +226,15 @@ Coverage includes successful/failed/throttled sign-ins, logout, password recover
 Mutation audit entries participate in their existing database transactions; rolled-back vouchers/payments/account edits do not leave successful change entries. Authentication and access events are recorded independently. Logging uses explicit field allowlists, with no full request payload, password/hash, reset token, remember token, authorization header, cookie, private attachment path, payment notes, or SMTP credential capture. Route templates are used instead of token-bearing URLs. IPs and browser information are evidence, not proof of a person's identity.
 
 Monitoring starts with this update. Historical events are not fabricated. Direct SQL, ad-hoc console scripts, and uninstrumented external changes are outside this audit scope; scheduled automation already has its separate run/issue monitoring. Include audit tables in protected backups and establish a retention policy appropriate for the business.
+
+
+### RSO SOA submissions
+
+Only active **RSO** and **Admin** accounts can submit Rental, Electricity and Water SOAs or attach the current statement to those modules' recurring requests. The forms and server endpoints enforce the same restriction. Accounting, Finance and IT cannot create these SOAs; their existing review/payment responsibilities are unchanged. Internet SOA and UTAK POS creation remain admin-only. Returned bill corrections retain the requester/admin ownership rule and also require a currently eligible submission role; a former requester who loses that role cannot bypass it through resubmission. Directory editing, recurring-schedule configuration and reopening cancelled records remain admin-only.
+
+
+### Keep me signed in
+
+The login checkbox uses a native checked/unchecked form control and sends an explicit boolean. Checked sign-ins issue Laravel's encrypted, HTTP-only remember cookie with a default 30-day lifetime (`AUTH_REMEMBER_MINUTES=43200`). A remembered cookie can restore access after the ordinary session expires or the browser is reopened, including for users whose account session version has advanced. Passwords are not stored in browser storage. Browser privacy settings must permit the site's cookies.
+
+Unchecked sign-ins explicitly expire an older remember cookie. Signing out, disabling an account, changing its password, or changing security-sensitive account details continues to revoke remembered access. Normal session expiration follows `SESSION_EXPIRE_ON_CLOSE` and `SESSION_LIFETIME`; browsers that restore session cookies can retain ordinary sessions according to their own settings.

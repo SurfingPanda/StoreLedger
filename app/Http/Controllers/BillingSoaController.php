@@ -243,7 +243,7 @@ class BillingSoaController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        abort_unless($request->user()->role === 'admin', 403);
+        abort_unless(\App\Services\SubmissionAccess::allows($request->user()->role, $request->route('module')), 403);
         $data = $request->validate(array_merge(DirectoryLinks::rules(), DuplicateBills::rules(), [
             'store_name' => ['required_without:billing_account_id', 'nullable', 'string', 'max:150'],
             'amount' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:9999999999.99'],

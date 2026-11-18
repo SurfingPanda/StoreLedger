@@ -55,7 +55,7 @@ class RequestRevisions
             'can_return' => ($role === 'accounting' && ($record->status === 'awaiting_voucher' || ($record->status === 'needs_revision' && $record->revision_target === 'accounting')))
                 || ($role === 'finance' && $record->status === 'vouchered'),
             'can_correct' => $record->status === 'needs_revision' && ($record->revision_target === 'accounting'
-                ? $role === 'accounting' : ($role === 'admin' || $record->created_by === $request->user()->id)),
+                ? $role === 'accounting' : ($role === 'admin' || ($record->created_by === $request->user()->id && SubmissionAccess::allows($role, RequestModule::key($record))))),
             'can_reopen' => $role === 'admin' && $record->status === 'cancelled' && !$record->payment,
         ];
     }

@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { showSuccess, showError } from '@/lib/alerts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Brand } from '@/components/brand';
 import { post, RequestError, type AppData } from '@/lib/auth';
@@ -116,7 +115,7 @@ export default function AuthPage({ data }: { data: AppData }) {
             </div>
             {(login || reset) && <PasswordInput id="password" label={reset ? 'New password' : 'Password'} reset={reset} invalid={!!errors.password} error={errors.password?.[0]} />}
             {reset && <PasswordInput id="confirm-password" label="Confirm password" confirm reset invalid={!!errors.password_confirmation} error={errors.password_confirmation?.[0]} />}
-            {login && <div className="form-options"><div className="remember-option"><Checkbox id="remember" checked={remember} onCheckedChange={value => setRemember(value === true)} /><label htmlFor="remember">Keep me signed in</label></div><a className="text-link" href={data.urls.forgotPassword}>Forgot password?</a></div>}
+            {login && <div className="form-options"><div className="remember-option"><input id="remember" name="remember" value="1" type="checkbox" className="remember-checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} disabled={busy} title="Stay signed in on this device after closing the browser" /><label htmlFor="remember">Keep me signed in</label></div><a className="text-link" href={data.urls.forgotPassword}>Forgot password?</a></div>}
             <Button className="submit-button w-full" type="submit" disabled={busy}>{busy ? <><LoaderCircle className="animate-spin motion-reduce:animate-none" />{login ? 'Signing in…' : reset ? 'Updating password…' : 'Sending link…'}</> : <>{login ? 'Sign in' : reset ? 'Update password' : 'Send reset link'}<ArrowRight className="submit-arrow" /></>}</Button>
           </form>
 

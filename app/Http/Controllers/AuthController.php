@@ -83,6 +83,10 @@ class AuthController extends Controller
         }
 
         RateLimiter::clear($key);
+        if (!$request->boolean('remember')) {
+            $cookies = app('cookie');
+            $cookies->queue($cookies->forget(Auth::guard()->getRecallerName()));
+        }
         $request->session()->regenerate();
         $request->session()->put('auth_version', $request->user()->session_version);
         $request->user()->forceFill(['last_login_at' => now()])->save();

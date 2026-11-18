@@ -12,7 +12,7 @@ class CurrentStatement
 {
     public static function upload(Request $request, Model $record): array
     {
-        abort_unless($request->user()->role === 'admin', 403);
+        abort_unless(SubmissionAccess::allows($request->user()->role, RequestModule::key($record)), 403);
         abort_unless($record->status === 'awaiting_soa', 409, 'This request is not awaiting a statement.');
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:9999999999.99'],

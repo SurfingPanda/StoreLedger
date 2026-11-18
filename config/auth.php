@@ -40,6 +40,7 @@ return [
     'guards' => [
         'web' => [
             'driver' => 'session',
+            'remember' => (int) env('AUTH_REMEMBER_MINUTES', 43200),
             'provider' => 'users',
         ],
     ],

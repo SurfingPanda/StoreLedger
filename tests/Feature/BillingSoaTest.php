@@ -55,13 +55,13 @@ class BillingSoaTest extends TestCase
     }
 
     #[DataProvider('modules')]
-    public function test_guests_are_blocked_and_only_admins_can_create_records(string $module): void
+    public function test_guests_are_blocked_and_non_submission_roles_cannot_create_records(string $module): void
     {
         $this->get('/'.$module)->assertRedirect('/login');
         $this->getJson('/'.$module.'/records')->assertUnauthorized();
         $this->getJson('/'.$module.'/1/attachment')->assertUnauthorized();
         $this->postJson('/'.$module.'/records', [])->assertUnauthorized();
-        foreach (['accounting', 'finance', 'rso', 'it'] as $role) {
+        foreach (['accounting', 'finance', 'it'] as $role) {
             $this->actingAs(User::factory()->create(['role' => $role]))
                 ->post('/'.$module.'/records', $this->payload(), ['Accept' => 'application/json'])->assertForbidden();
         }
