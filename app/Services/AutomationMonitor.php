@@ -7,10 +7,11 @@ use Throwable;
 class AutomationMonitor
 {
     public const TASKS = [
+        'billing:send-overdue-reminders' => ['label' => 'Overdue bill reminders', 'frequency' => 'Daily at 9:00 AM', 'cadence' => 'daily', 'timeout' => 60],
         'pos:send-renewal-reminders' => ['label' => 'UTAK POS reminders', 'frequency' => 'Daily at 9:00 AM', 'cadence' => 'daily', 'timeout' => 60],
         'internet:send-soa-reminders' => ['label' => 'Internet SOA reminders', 'frequency' => 'Daily at 9:00 AM', 'cadence' => 'daily', 'timeout' => 60],
         'billing:send-soa-reminders' => ['label' => 'Water, electricity & rental reminders', 'frequency' => 'Daily at 9:00 AM', 'cadence' => 'daily', 'timeout' => 60],
-        'notifications:deliver-workflow' => ['label' => 'Finance & RSO email delivery', 'frequency' => 'Every minute', 'cadence' => 'minute', 'timeout' => 10],
+        'notifications:deliver-workflow' => ['label' => 'Workflow & revision email delivery', 'frequency' => 'Every minute', 'cadence' => 'minute', 'timeout' => 10],
         'billing:generate-recurring' => ['label' => 'Recurring bill generation', 'frequency' => 'Every hour', 'cadence' => 'hourly', 'timeout' => 60],
     ];
     private static array $contexts = [];
@@ -65,12 +66,20 @@ class AutomationMonitor
     {
         if (!str_contains($command, 'send-') || !str_contains($command, '-reminders')) return;
         $recipients = \App\Models\NotificationSetting::recipients('accounting_voucher')->pluck('email')->map(fn ($email) => strtolower($email))->all();
-        DB::table('automation_issues')->where('command', $command)->whereNull('resolved_at')->whereNotNull('request_id')->orderBy('id')->chunkById(100, function ($issues) use ($recipients) {
+        DB::table('automation_issues')->where('command', $command)->whereNull('resolved_at')->whereNotNull('request_id')->orderBy('id')->chunkById(100, function ($issues) use ($recipients, $command) {
             foreach ($issues as $issue) {
                 if (!array_key_exists($issue->module ?? '', RequestModule::LABELS)) continue;
                 $record = RequestModule::query($issue->module)->find($issue->request_id);
                 $date = $record?->{RequestModule::dateField($issue->module)};
                 $today = now('Asia/Manila')->startOfDay();
+                if ($command === 'billing:send-overdue-reminders') {
+                    $event = $record ? WorkflowNotifications::overdueEvent($record) : null;
+                    if (!$event || !$date || $date->toDateString() >= $today->toDateString() || $record->payment
+                        || !\App\Models\NotificationSetting::recipients($event, $record)->contains(fn ($recipient) => strtolower($recipient['email']) === strtolower($issue->recipient ?? ''))) {
+                        DB::table('automation_issues')->where('id', $issue->id)->update(['resolved_at' => now(), 'updated_at' => now()]);
+                    }
+                    continue;
+                }
                 if (!$record || $record->status !== 'awaiting_voucher' || !$date || $date->toDateString() < $today->toDateString()
                     || !in_array(strtolower($issue->recipient ?? ''), $recipients)) {
                     DB::table('automation_issues')->where('id', $issue->id)->update(['resolved_at' => now(), 'updated_at' => now()]);

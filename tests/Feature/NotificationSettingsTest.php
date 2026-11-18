@@ -18,12 +18,12 @@ class NotificationSettingsTest extends TestCase
     {
         $this->actingAs(User::factory()->create(['role' => 'accounting']));
         $this->withoutVite()->get('/settings')->assertOk();
-        $this->getJson('/settings/notifications')->assertOk()->assertJsonCount(4, 'settings');
+        $this->getJson('/settings/notifications')->assertOk()->assertJsonCount(count(NotificationSetting::EVENTS), 'settings');
         $settings = $this->settings();
         $settings[0]['mode'] = 'custom';
         $settings[0]['emails'] = ['accounting-updates@example.com'];
         $this->postJson('/settings/notifications', ['settings' => $settings])->assertOk();
-        $this->assertDatabaseCount('notification_settings', 4);
+        $this->assertDatabaseCount('notification_settings', count(NotificationSetting::EVENTS));
         $this->assertSame(['accounting-updates@example.com'], NotificationSetting::find('accounting_voucher')->emails);
         $this->getJson('/settings/notifications')->assertOk()->assertJsonPath('settings.0.mode', 'custom');
     }
@@ -55,7 +55,7 @@ class NotificationSettingsTest extends TestCase
         $this->postJson('/settings/notifications', ['settings' => $settings])->assertOk();
         $this->assertSame(['voucher@example.com'], NotificationSetting::find('accounting_voucher')->emails);
         $this->assertSame('off', NotificationSetting::find('finance_payment')->mode);
-        $this->getJson('/settings/notifications')->assertOk()->assertJsonCount(4, 'settings');
+        $this->getJson('/settings/notifications')->assertOk()->assertJsonCount(count(NotificationSetting::EVENTS), 'settings');
         $this->withoutVite()->get('/settings')->assertOk();
     }
 

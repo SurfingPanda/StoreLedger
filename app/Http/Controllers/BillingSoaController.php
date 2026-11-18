@@ -69,7 +69,7 @@ class BillingSoaController extends Controller
         abort_unless($billingSoa->status === 'vouchered', 409, 'Only processed vouchers awaiting payment can be paid.');
         $data = $request->validate([
             'workflow_version' => ['nullable', 'integer', 'min:1'],
-            'paid_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
+            'paid_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
             'method' => ['required', 'in:bank_transfer,cash,check,e_wallet,other'],
             'reference' => ['required', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:5000'],
@@ -160,7 +160,8 @@ class BillingSoaController extends Controller
         $data = $request->validate([
             'workflow_version' => ['nullable', 'integer', 'min:1'],
             'action' => ['required', 'in:process,cancel'],
-            'voucher_reference' => ['nullable', 'string', 'max:100'],
+            'voucher_reference' => ['required_if:action,process', 'nullable', 'string', 'max:100'],
+            'cancellation_reason' => ['required_if:action,cancel', 'nullable', 'string', 'max:5000'],
         ]);
         $status = $data['action'] === 'process' ? 'vouchered' : 'cancelled';
         // Only one accountant can resolve a pending SOA request, including simultaneous requests.
@@ -175,6 +176,7 @@ class BillingSoaController extends Controller
             'voucher_action_by' => $request->user()->id,
             'voucher_action_at' => now(),
             'voucher_reference' => $status === 'vouchered' ? ($data['voucher_reference'] ?? null) : null,
+            'cancellation_reason' => $status === 'cancelled' ? $data['cancellation_reason'] : null,
         ]);
             if ($updated) \App\Services\SecurityAudit::record('billing', $status === 'vouchered' ? 'voucher.processed' : 'request.cancelled',
                 $billingSoa->fresh(), \App\Services\SecurityAudit::clean($current->getAttributes()), \App\Services\SecurityAudit::clean($billingSoa->fresh()->getAttributes()));

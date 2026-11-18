@@ -48,7 +48,7 @@ class WorkflowAutomationTest extends TestCase
         Notification::assertCount(2);
         Notification::assertSentOnDemand(WorkflowUpdate::class, fn ($mail) => $mail->event === 'finance_payment');
         Notification::assertSentOnDemand(WorkflowUpdate::class, fn ($mail) => $mail->event === 'rso_voucher_processed');
-        $this->postJson(route($module.'.voucher', $record), ['action' => 'process'])->assertConflict();
+        $this->postJson(route($module.'.voucher', $record), ['action' => 'process', 'voucher_reference' => 'TEST-VOUCHER'])->assertConflict();
         $this->actingAs(User::where('role', 'finance')->first())->post(route($module.'.payment', $record), [
             'paid_on' => now()->toDateString(), 'method' => 'cash', 'reference' => 'P-001',
             'proof' => UploadedFile::fake()->create('receipt.pdf', 10, 'application/pdf'),
@@ -65,7 +65,7 @@ class WorkflowAutomationTest extends TestCase
         NotificationSetting::create(['event' => 'finance_payment', 'mode' => 'custom', 'emails' => ['custom@example.com']]);
         NotificationSetting::create(['event' => 'rso_voucher_processed', 'mode' => 'off', 'emails' => []]);
         $record = $this->requestRecord('utak-pos');
-        $this->actingAs(User::factory()->create(['role' => 'accounting']))->postJson(route('utak-pos.voucher', $record), ['action' => 'process'])->assertOk();
+        $this->actingAs(User::factory()->create(['role' => 'accounting']))->postJson(route('utak-pos.voucher', $record), ['action' => 'process', 'voucher_reference' => 'TEST-VOUCHER'])->assertOk();
         $this->assertDatabaseCount('workflow_mail_deliveries', 1);
         Notification::shouldReceive('send')->once()->andThrow(new \RuntimeException('SMTP unavailable'));
         $this->artisan('notifications:deliver-workflow')->assertFailed();
@@ -82,7 +82,7 @@ class WorkflowAutomationTest extends TestCase
     {
         User::factory()->create(['role' => 'finance']);
         $record = $this->requestRecord('utak-pos');
-        $this->actingAs(User::factory()->create(['role' => 'accounting']))->postJson(route('utak-pos.voucher', $record), ['action' => 'process'])->assertOk();
+        $this->actingAs(User::factory()->create(['role' => 'accounting']))->postJson(route('utak-pos.voucher', $record), ['action' => 'process', 'voucher_reference' => 'TEST-VOUCHER'])->assertOk();
         config(['mail.default' => 'log']); Notification::fake();
         $this->artisan('notifications:deliver-workflow')->assertFailed();
         $this->assertDatabaseHas('workflow_mail_deliveries', ['sent_at' => null, 'attempts' => 0]);

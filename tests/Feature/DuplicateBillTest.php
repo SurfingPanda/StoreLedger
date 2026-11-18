@@ -83,11 +83,11 @@ class DuplicateBillTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => 'accounting']));
         $this->getJson('/'.$module.'/records')->assertJsonPath('data.0.duplicate_count', 1);
         $this->getJson(route($module.'.details', $record))->assertJsonPath('duplicates.0.id', $other->id);
-        $this->postJson(route($module.'.voucher', $record), ['action' => 'process'])->assertUnprocessable()->assertJsonValidationErrors('duplicate_bill');
+        $this->postJson(route($module.'.voucher', $record), ['action' => 'process', 'voucher_reference' => 'TEST-VOUCHER'])->assertUnprocessable()->assertJsonValidationErrors('duplicate_bill');
         $this->assertSame('awaiting_voucher', $record->fresh()->status);
         $this->assertDatabaseCount('workflow_mail_deliveries', 0);
-        $this->postJson(route($module.'.voucher', $other), ['action' => 'cancel'])->assertOk();
-        $this->postJson(route($module.'.voucher', $record), ['action' => 'process'])->assertOk();
+        $this->postJson(route($module.'.voucher', $other), ['action' => 'cancel', 'cancellation_reason' => 'Reviewed and cancelled by Accounting.'])->assertOk();
+        $this->postJson(route($module.'.voucher', $record), ['action' => 'process', 'voucher_reference' => 'TEST-VOUCHER'])->assertOk();
     }
 
     #[DataProvider('modules')]
@@ -131,13 +131,13 @@ class DuplicateBillTest extends TestCase
         $other = $this->legacy($module, ['status' => 'vouchered']);
         $url = '/'.$module.'/records/'.$record->id.'/duplicate-cancel';
         $this->actingAs(User::factory()->create(['role' => 'finance']))->postJson($url)->assertForbidden();
-        $this->actingAs($accountant)->postJson($url)->assertOk();
+        $this->actingAs($accountant)->postJson($url, ['cancellation_reason' => 'Duplicate bill reviewed.'])->assertOk();
         $this->assertSame('cancelled', $record->fresh()->status);
         $this->assertNotNull($record->fresh()->duplicate_cancelled_at);
         $this->assertSame('ORIGINAL-123', $record->fresh()->voucher_reference);
         $this->assertSame($accountant->id, $record->fresh()->voucher_action_by);
         $this->assertStringContainsString('cancelled after duplicate-bill review', $record->comments()->first()->body);
-        $this->postJson('/'.$module.'/records/'.$other->id.'/duplicate-cancel')->assertConflict();
+        $this->postJson('/'.$module.'/records/'.$other->id.'/duplicate-cancel', ['cancellation_reason' => 'Duplicate bill reviewed.'])->assertConflict();
         $this->assertCount(0, DuplicateBills::matches($other));
     }
 

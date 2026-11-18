@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
+use App\Services\RequestModule;
 
 class NotificationSetting extends Model
 {
@@ -13,6 +14,11 @@ class NotificationSetting extends Model
         'finance_payment' => 'finance',
         'rso_voucher_processed' => 'rso',
         'rso_payment_processed' => 'rso',
+        'accounting_overdue' => 'accounting',
+        'finance_overdue' => 'finance',
+        'requester_overdue' => 'requester',
+        'requester_revision' => 'requester',
+        'accounting_revision' => 'accounting',
     ];
     protected $primaryKey = 'event';
     public $incrementing = false;
@@ -20,7 +26,7 @@ class NotificationSetting extends Model
     protected $fillable = ['event', 'mode', 'emails'];
     protected function casts(): array { return ['emails' => 'array']; }
 
-    public static function recipients(string $event): Collection
+    public static function recipients(string $event, ?Model $record = null): Collection
     {
         $role = self::EVENTS[$event] ?? throw new \InvalidArgumentException('Unknown notification event');
         $setting = self::find($event);
@@ -31,7 +37,14 @@ class NotificationSetting extends Model
                 'notifiable' => Notification::route('mail', $email),
             ]);
         }
-        return User::where('role', $role)->where('is_active', true)->get()->map(fn ($user) => [
+        return self::teamRecipients($event, $record);
+    }
+
+    public static function teamRecipients(string $event, ?Model $record = null): Collection
+    {
+        $role = self::EVENTS[$event];
+        $roles = $role !== 'requester' ? [$role] : (!$record || in_array(RequestModule::key($record), ['water', 'electricity', 'rental']) ? ['admin', 'rso'] : ['admin']);
+        return User::whereIn('role', $roles)->where('is_active', true)->get()->map(fn ($user) => [
             'email' => $user->email, 'user_id' => $user->id, 'notifiable' => $user,
         ]);
     }

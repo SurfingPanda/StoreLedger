@@ -34,7 +34,7 @@ class BillingWorkflowIsolationTest extends TestCase
                 $this->getJson($base.'/details')->assertNotFound();
                 $this->getJson($base.'/payment-proof')->assertNotFound();
                 $this->postJson($base.'/comments', ['body' => 'Wrong category'])->assertNotFound();
-                $this->postJson($base.'/voucher', ['action' => 'process'])->assertNotFound();
+                $this->postJson($base.'/voucher', ['action' => 'process', 'voucher_reference' => 'TEST-VOUCHER'])->assertNotFound();
                 $this->postJson($base.'/payment', [])->assertNotFound();
             }
             $this->assertSame('awaiting_voucher', $record->fresh()->status);

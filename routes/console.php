@@ -15,4 +15,7 @@ Schedule::command('billing:send-soa-reminders')->dailyAt('09:00')
 
 Schedule::command('notifications:deliver-workflow')->everyMinute()->withoutOverlapping(10);
 
+Schedule::command('billing:send-overdue-reminders')->dailyAt('09:00')
+    ->timezone('Asia/Manila')->withoutOverlapping(60);
+
 Schedule::command('billing:generate-recurring')->hourly()->withoutOverlapping(60);

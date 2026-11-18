@@ -14,6 +14,9 @@ class WorkflowUpdate extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        if (in_array($this->event, ['accounting_voucher', 'requester_revision', 'accounting_revision', 'accounting_overdue', 'finance_overdue', 'requester_overdue'], true)) {
+            return $this->actionMail();
+        }
         $record = $this->record;
         $module = RequestModule::key($record);
         $paid = $this->event === 'rso_payment_processed';
@@ -39,4 +42,30 @@ class WorkflowUpdate extends Notification
             ->line($finance ? 'Please enter the payment date, method, and reference, and upload proof of payment in StoreLedger.' : 'Open StoreLedger to review the request details, comments, and store history.')
             ->salutation('BW Superbakeshop Operations');
     }
+    private function actionMail(): MailMessage
+    {
+        $record = $this->record;
+        $module = RequestModule::key($record);
+        $overdue = str_ends_with($this->event, '_overdue');
+        $revision = in_array($this->event, ['requester_revision', 'accounting_revision'], true);
+        $team = str_starts_with($this->event, 'finance_') ? 'Finance' : (str_starts_with($this->event, 'accounting_') ? 'Accounting' : 'Admin / RSO');
+        $title = $overdue ? 'Overdue bill - action required' : ($revision ? 'Request returned for correction' : 'Corrected request ready for Accounting');
+        $next = match ($this->event) {
+            'finance_overdue' => 'Record payment and attach proof after settling this overdue bill.',
+            'accounting_overdue' => $record->status === 'needs_revision' ? 'Correct the returned voucher and resubmit it to Finance.' : 'Review this overdue request and process its voucher.',
+            'requester_overdue' => $record->status === 'awaiting_soa' ? 'Attach the current SOA and confirm the amount.' : 'Correct the returned bill and resubmit it to Accounting.',
+            'accounting_revision' => 'Correct the voucher reference and resubmit the request to Finance.',
+            'requester_revision' => 'Review the return reason, correct the bill, and resubmit it to Accounting.',
+            default => 'Review the corrected request and process its voucher.',
+        };
+        $mail = (new MailMessage)->subject($title.': '.RequestModule::LABELS[$module].' - '.$record->store_name)
+            ->greeting('Hello '.$team.' team,')->line($next)
+            ->line('Store: '.$record->store_name)->line('Category: '.RequestModule::LABELS[$module])
+            ->line('Amount: PHP '.number_format((float) $record->amount, 2))
+            ->line('Due date: '.$record->{RequestModule::dateField($module)}->format('F j, Y'));
+        if ($record->revision_reason) $mail->line('Return reason: '.$record->revision_reason);
+        if ($overdue) $mail->line('This daily reminder continues while this bill remains overdue and requires action from your team.');
+        return $mail->action('Review request', route($module.'.detail', $record->id))->salutation('BW Superbakeshop Operations');
+    }
+
 }

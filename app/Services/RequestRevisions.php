@@ -14,7 +14,7 @@ class RequestRevisions
     {
         $fields = ['store_id', 'store_name', 'supplier_id', 'billing_account_id', 'provider', 'account_number',
             'billing_period', 'amount', 'status', 'voucher_reference', 'voucher_action_by', 'voucher_action_at',
-            'revision_reason', 'returned_by', 'returned_at', 'duplicate_cancelled_at', 'attachment_name', 'attachment_path', 'workflow_version', 'review_cycle', 'revision_target'];
+            'revision_reason', 'returned_by', 'returned_at', 'duplicate_cancelled_at', 'cancellation_reason', 'attachment_name', 'attachment_path', 'workflow_version', 'review_cycle', 'revision_target'];
         $fields[] = RequestModule::dateField(RequestModule::key($record));
         return $record->only($fields);
     }
@@ -55,7 +55,7 @@ class RequestRevisions
             'can_return' => ($role === 'accounting' && ($record->status === 'awaiting_voucher' || ($record->status === 'needs_revision' && $record->revision_target === 'accounting')))
                 || ($role === 'finance' && $record->status === 'vouchered'),
             'can_correct' => $record->status === 'needs_revision' && ($record->revision_target === 'accounting'
-                ? $role === 'accounting' : ($role === 'admin' || ($record->created_by === $request->user()->id && SubmissionAccess::allows($role, RequestModule::key($record))))),
+                ? $role === 'accounting' : SubmissionAccess::allows($role, RequestModule::key($record))),
             'can_reopen' => $role === 'admin' && $record->status === 'cancelled' && !$record->payment,
         ];
     }
@@ -76,6 +76,7 @@ class RequestRevisions
             $record->revision_reason = $data['reason']; $record->returned_by = $request->user()->id; $record->returned_at = now();
             $record->workflow_version++; $record->review_cycle++; $record->save();
             self::event($record, $request, 'returned', $data['reason'], $before);
+            WorkflowNotifications::returned($record);
             return ['message' => 'Request returned for revision. Voucher and payment actions are paused.'];
         });
     }
@@ -91,8 +92,10 @@ class RequestRevisions
             $before = self::snapshot($record);
             $record->status = 'needs_revision'; $record->revision_target = 'requester'; $record->revision_reason = $data['reason'];
             $record->returned_by = $request->user()->id; $record->returned_at = now(); $record->duplicate_cancelled_at = null;
+            $record->cancellation_reason = null;
             $record->workflow_version++; $record->review_cycle++; $record->save();
             self::event($record, $request, 'reopened', $data['reason'], $before);
+            WorkflowNotifications::returned($record);
             return ['message' => 'Request reopened for correction. It requires Accounting approval before payment.'];
         });
     }
@@ -136,6 +139,7 @@ class RequestRevisions
                 $record->workflow_version++; $record->save();
                 self::event($record, $request, 'resubmitted', $request->input('correction_note'), $before);
                 if ($record->status === 'vouchered') WorkflowNotifications::voucherProcessed($record);
+                else WorkflowNotifications::resubmitted($record);
                 return ['message' => $record->status === 'vouchered' ? 'Voucher corrected and resubmitted to Finance.' : 'Corrections saved and resubmitted for Accounting approval.'];
             });
         } catch (Throwable $error) {

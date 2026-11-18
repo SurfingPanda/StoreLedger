@@ -14,7 +14,7 @@ use Throwable;
 class DeliverWorkflowMail extends Command
 {
     protected $signature = 'notifications:deliver-workflow {--limit=100}';
-    protected $description = 'Deliver pending Finance and RSO workflow emails, retrying failures';
+    protected $description = 'Deliver pending workflow and revision emails, retrying failures';
 
     public function handle(): int
     {
@@ -35,23 +35,34 @@ class DeliverWorkflowMail extends Command
             DB::transaction(function () use ($id, &$sent, &$failed) {
                 $delivery = DB::table('workflow_mail_deliveries')->where('id', $id)->lockForUpdate()->first();
                 if (!$delivery || $delivery->sent_at || ($delivery->next_attempt_at && $delivery->next_attempt_at > now()->toDateTimeString())) return;
-                // Respect recipients switched off or removed after the event was captured.
-                $allowed = NotificationSetting::recipients($delivery->event)->contains(fn ($recipient) => strtolower($recipient['email']) === $delivery->email);
-                if (!$allowed) {
-                    AutomationMonitor::resolve('workflow:'.$id);
-                    DB::table('workflow_mail_deliveries')->where('id', $id)->delete();
-                    return;
-                }
                 try {
                     $record = RequestModule::query($delivery->module)->findOrFail($delivery->request_id);
+                    // Recipient eligibility is evaluated for the bill's module.
+                    $allowed = NotificationSetting::recipients($delivery->event, $record)->contains(fn ($recipient) => strtolower($recipient['email']) === $delivery->email);
+                    if (!$allowed) {
+                        AutomationMonitor::resolve('workflow:'.$id);
+                        DB::table('workflow_mail_deliveries')->where('id', $id)->delete();
+                        return;
+                    }
+                    $relevant = match ($delivery->event) {
+                        'accounting_voucher' => $record->status === 'awaiting_voucher',
+                        'requester_revision' => $record->status === 'needs_revision' && $record->revision_target === 'requester',
+                        'accounting_revision' => $record->status === 'needs_revision' && $record->revision_target === 'accounting',
+                        default => true,
+                    };
+                    if (!$relevant) {
+                        AutomationMonitor::resolve('workflow:'.$id);
+                        DB::table('workflow_mail_deliveries')->where('id', $id)->delete();
+                        return;
+                    }
                     if ((int) $delivery->review_cycle !== (int) $record->review_cycle) {
                         AutomationMonitor::resolve('workflow:'.$id);
-                    DB::table('workflow_mail_deliveries')->where('id', $id)->delete();
+                        DB::table('workflow_mail_deliveries')->where('id', $id)->delete();
                         return;
                     }
                     if ($delivery->event === 'finance_payment' && $record->status !== 'vouchered') {
                         AutomationMonitor::resolve('workflow:'.$id);
-                    DB::table('workflow_mail_deliveries')->where('id', $id)->delete();
+                        DB::table('workflow_mail_deliveries')->where('id', $id)->delete();
                         return;
                     }
                     Notification::route('mail', $delivery->email)->notify(new WorkflowUpdate($record, $delivery->event));

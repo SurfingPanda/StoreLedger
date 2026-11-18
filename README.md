@@ -245,3 +245,15 @@ Unchecked sign-ins explicitly expire an older remember cookie. Signing out, disa
 Saved SOAs, payment proofs and earlier SOA versions open in an in-app preview dialog. PDFs use the browser's built-in PDF viewer; PNG/JPEG images have zoom and fit controls. Download remains available, with an authenticated **Open in new tab** option for browsers with limited embedded PDF support. Missing files, expired sessions and unsupported formats show a readable error and retry/download options.
 
 Previews use the existing authenticated, module-scoped file endpoints with `?preview=1`. Stored bytes determine the content type; only PDF, PNG and JPEG may be served inline. Other files remain downloadable but cannot be rendered inline through this feature. Responses are private/no-store, disable MIME sniffing, and restrict framing to the same origin. No public storage URL is introduced. Opening a preview records `attachment.preview_requested` in the security audit log; downloads retain their separate audit event. The browser fetches the file into memory and releases its object URL when the dialog closes. No third-party preview service receives the files.
+
+## Shared corrections, overdue follow-up, and voucher controls
+
+RSOs can correct returned Water, Electricity, and Rental requests across all stores, including requests created by Admin or another RSO. POS and Internet bill corrections remain with Admin; voucher corrections remain with Accounting.
+
+Finance payment dates are validated against today's date in Asia/Manila. Processing a voucher requires a voucher reference. Cancelling a request, including a duplicate, requires a cancellation reason retained in the record and history.
+
+Returned/reopened bills notify the eligible Admin/RSO team or Accounting. Corrected bills notify Accounting; corrected vouchers notify Finance through the existing workflow. Revision emails use the existing minute-by-minute delivery command, respect recipient settings, and skip outdated workflow stages and review cycles.
+
+The scheduler runs billing:send-overdue-reminders daily at 9:00 AM Asia/Manila. Overdue requests awaiting vouchers or Accounting corrections notify Accounting; those awaiting payment notify Finance; those awaiting SOAs or requester corrections notify the eligible Admin/RSO team. New recipient settings support registered teams, custom addresses, or notifications off. A delivery ledger deduplicates each bill, review cycle, stage, recipient, and Philippine calendar day. Failed sends remain retryable; paid/cancelled requests and requests with recorded payments are excluded. SMTP acceptance does not guarantee inbox delivery.
+
+Run php artisan migrate --force and rebuild frontend assets when deploying. The existing every-minute schedule:run cron job also runs the new daily task; no additional cron entry is needed.

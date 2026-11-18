@@ -30,7 +30,7 @@ class RsoSubmissionTest extends TestCase
         $this->assertSame($rso->id, $record->created_by); $this->assertSame('awaiting_voucher', $record->status);
         Storage::disk('local')->assertExists($record->attachment_path);
         $this->assertSame('rso', SecurityAuditLog::where('event', 'request.created')->firstOrFail()->actor_role);
-        $this->postJson(route($module.'.voucher', $record), ['action' => 'process'])->assertForbidden();
+        $this->postJson(route($module.'.voucher', $record), ['action' => 'process', 'voucher_reference' => 'TEST-VOUCHER'])->assertForbidden();
         $this->postJson(route($module.'.payment', $record), [])->assertForbidden();
         $this->postJson('/directory/stores', [])->assertForbidden();
     }

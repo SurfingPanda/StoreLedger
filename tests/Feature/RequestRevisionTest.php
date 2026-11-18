@@ -49,7 +49,7 @@ class RequestRevisionTest extends TestCase
         $record = $this->record($module);
         $this->returned($record);
         $this->assertSame('needs_revision', $record->fresh()->status);
-        $this->postJson($this->url($record, 'voucher'), array_merge($this->version($record), ['action' => 'process']))->assertConflict();
+        $this->postJson($this->url($record, 'voucher'), array_merge($this->version($record), ['action' => 'process', 'voucher_reference' => 'TEST-VOUCHER']))->assertConflict();
         $this->getJson('/'.$module.'/records?status=needs_revision')->assertJsonPath('total', 1)->assertJsonPath('summary.needs_revision_count', 1);
         $this->getJson('/dashboard/records?status=needs_revision')->assertJsonPath('summary.needs_revision_count', 1)->assertJsonPath('summary.outstanding_amount', '1500.00');
         $this->actingAs(User::factory()->create(['role' => 'finance']))->postJson($this->url($record, 'payment'), [])->assertConflict();
@@ -168,8 +168,10 @@ class RequestRevisionTest extends TestCase
         Notification::fake(); config(['mail.default' => 'smtp']);
         User::factory()->create(['role' => 'finance']); User::factory()->create(['role' => 'rso']);
         $record = $this->record('water'); $this->voucher($record); $this->returned($record, 'finance', 'requester');
-        $this->artisan('notifications:deliver-workflow')->assertSuccessful(); Notification::assertNothingSent();
-        $this->assertSame(0, DB::table('workflow_mail_deliveries')->count());
+        $this->artisan('notifications:deliver-workflow')->assertSuccessful();
+        Notification::assertCount(2);
+        Notification::assertSentOnDemand(\App\Notifications\WorkflowUpdate::class, fn ($notice) => $notice->event === 'requester_revision');
+        $this->assertSame(0, DB::table('workflow_mail_deliveries')->where('review_cycle', 1)->count());
         Storage::disk('local')->delete('old.pdf');
         $this->actingAs(User::find($record->created_by))->postJson($this->url($record, 'resubmit'), $this->correction($record))->assertUnprocessable();
         $this->assertSame('needs_revision', $record->fresh()->status);

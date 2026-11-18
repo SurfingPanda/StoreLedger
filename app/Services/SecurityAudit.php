@@ -17,7 +17,7 @@ class SecurityAudit
     public const FIELDS = ['id', 'name', 'email', 'role', 'is_active', 'event', 'mode', 'emails', 'code', 'ownership_type', 'assigned_rso_id',
         'store_id', 'supplier_id', 'billing_account_id', 'module', 'store_name', 'provider', 'account_number', 'billing_cycle_months',
         'billing_period', 'renewal_date', 'due_date', 'amount', 'status', 'voucher_reference', 'voucher_action_by', 'voucher_action_at',
-        'workflow_version', 'review_cycle', 'revision_target', 'returned_by', 'returned_at', 'duplicate_cancelled_at',
+        'workflow_version', 'review_cycle', 'revision_target', 'returned_by', 'returned_at', 'duplicate_cancelled_at', 'cancellation_reason',
         'paid_on', 'method', 'reference', 'user_id', 'pos_renewal_id', 'internet_soa_id', 'billing_soa_id',
         'active', 'interval_months', 'lead_days', 'next_due_date', 'source_id', 'phone'];
     private const METADATA = ['attempted_email', 'http_status', 'changed_fields', 'password_changed', 'sessions_revoked', 'revision_id', 'side', 'proof_uploaded', 'source', 'delivery_id'];

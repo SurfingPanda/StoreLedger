@@ -42,7 +42,7 @@ class RecurringBillingTest extends TestCase
         $this->assertSame($module === 'utak-pos' ? 'awaiting_voucher' : 'awaiting_soa', $next->status);
         if ($module !== 'utak-pos') {
             $this->assertNull($next->attachment_path);
-            $this->actingAs(User::factory()->create(['role' => 'accounting']))->postJson(route($module.'.voucher', $next), ['action' => 'process'])->assertConflict();
+            $this->actingAs(User::factory()->create(['role' => 'accounting']))->postJson(route($module.'.voucher', $next), ['action' => 'process', 'voucher_reference' => 'TEST-VOUCHER'])->assertConflict();
             $this->actingAs(User::find($source->created_by))->post(route($module.'.statement', $next), [
                 'amount' => '1675.25', 'soa' => UploadedFile::fake()->create('february.pdf', 20, 'application/pdf'),
             ], ['Accept' => 'application/json'])->assertOk();

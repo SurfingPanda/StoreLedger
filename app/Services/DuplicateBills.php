@@ -77,16 +77,18 @@ class DuplicateBills
     public static function cancel(Request $request, Model $record): array
     {
         abort_unless(in_array($request->user()->role, ['admin', 'accounting'], true), 403);
-        return DB::transaction(function () use ($request, $record) {
+        $data = $request->validate(['cancellation_reason' => ['required', 'string', 'max:5000']]);
+        return DB::transaction(function () use ($request, $record, $data) {
             self::lock();
             $record = $record->newQuery()->whereKey($record->id)->lockForUpdate()->firstOrFail();
             abort_unless(in_array($record->status, ['awaiting_soa', 'awaiting_voucher', 'vouchered'], true) && !$record->payment, 409, 'Only unpaid requests can be cancelled.');
             abort_unless(self::matches($record), 409, 'No matching duplicate remains. Refresh this request.');
             $record->status = 'cancelled';
             $record->duplicate_cancelled_at = now();
+            $record->cancellation_reason = $data['cancellation_reason'];
             $record->workflow_version++;
             $record->save();
-            $comment = $record->comments()->make(['body' => 'Request cancelled after duplicate-bill review. Original voucher details retained.']);
+            $comment = $record->comments()->make(['body' => 'Request cancelled after duplicate-bill review. Reason: '.$data['cancellation_reason'].'. Original voucher details retained.']);
             $comment->user_id = $request->user()->id;
             $comment->save();
             return ['message' => 'Duplicate request cancelled. Its history and voucher details have been retained.'];

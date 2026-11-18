@@ -73,7 +73,8 @@ class AutomationHealthController extends Controller
         $issuePage = TableSort::apply($issues, $request, ['command' => 'command', 'recipient' => 'recipient', 'last_seen_at' => 'last_seen_at', 'occurrences' => 'occurrences', 'resolved_at' => DB::raw("CASE WHEN resolved_at IS NULL THEN 'Open' ELSE 'Resolved' END")], 'last_seen_at', 'desc', 'issues_')->paginate($this->pageSize($request), ['id', 'command', 'module', 'request_id', 'schedule_id', 'recipient', 'message', 'occurrences', 'first_seen_at', 'last_seen_at', 'resolved_at'], 'issues_page')
             ->through(fn ($row) => $this->dates((array) $row) + ['detail_url' => $this->link($row->module, $row->request_id)]);
         $today = $now->setTimezone('Asia/Manila')->startOfDay()->setTimezone(config('app.timezone'))->toDateTimeString();
-        $sentToday = DB::table('workflow_mail_deliveries')->where('sent_at', '>=', $today)->count();
+        $sentToday = DB::table('workflow_mail_deliveries')->where('sent_at', '>=', $today)->count()
+            + DB::table('overdue_mail_deliveries')->where('sent_at', '>=', $today)->count();
         foreach (['pos_renewal_reminders', 'internet_soa_reminders', 'billing_soa_reminders'] as $table) $sentToday += DB::table($table)->where('sent_at', '>=', $today)->count();
         $active = RecurringSchedule::where('active', true)->get();
         $blocked = $active->filter(function ($schedule) {

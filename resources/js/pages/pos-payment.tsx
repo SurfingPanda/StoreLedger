@@ -47,7 +47,7 @@ export default function PosPayment({ payment, canPay, amount, base, disabled, on
       <fieldset disabled={saving || disabled} className="soa-form-fields">
         <div className="payment-total"><span>AMOUNT TO RECORD</span><strong>{money(amount)}</strong><small>Full payment for this request</small></div>
         <div className="payment-entry-columns"><div><h3><span>1</span>Payment details</h3><p className="payment-step-hint">Use the date and reference from the completed transaction.</p><div className="payment-form-grid">
-          <div className="field-group"><label htmlFor="payment-date">Payment date</label><Input id="payment-date" name="paid_on" type="date" required {...field('paid_on')} />{fieldError('paid_on')}</div>
+          <div className="field-group"><label htmlFor="payment-date">Payment date</label><Input id="payment-date" name="paid_on" type="date" max={new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)} required {...field('paid_on')} />{fieldError('paid_on')}</div>
           <div className="field-group"><label htmlFor="payment-method">Payment method</label><select id="payment-method" name="method" required defaultValue="" {...field('method')}><option value="" disabled>Select payment method</option>{Object.entries(methods).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{fieldError('method')}</div>
         </div>
         <div className="field-group"><label htmlFor="payment-reference">Payment reference</label><Input id="payment-reference" name="reference" required maxLength={100} placeholder="Transaction, receipt, or check number" {...field('reference')} />{fieldError('reference')}</div></div>

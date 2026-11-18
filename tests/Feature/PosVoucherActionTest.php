@@ -32,14 +32,14 @@ class PosVoucherActionTest extends TestCase
         $record = $this->renewal();
         $accountant = User::factory()->create(['role' => 'accounting']);
         $url = route('utak-pos.voucher', $record);
-        $this->actingAs($accountant)->postJson($url, ['action' => $action, 'voucher_action_by' => 999])
+        $this->actingAs($accountant)->postJson($url, ['voucher_reference' => 'TEST-VOUCHER', 'cancellation_reason' => 'Reviewed and cancelled by Accounting.', 'action' => $action, 'voucher_action_by' => 999])
             ->assertOk()->assertJsonPath('record.status', $status)->assertJsonPath('record.voucher_action_by', $accountant->id);
         $record->refresh();
         $this->assertNotNull($record->voucher_action_at);
         $this->assertSame($status, $record->status);
         $this->getJson('/utak-pos/records')->assertJsonPath('total', 0);
         $other = User::factory()->create(['role' => 'accounting']);
-        $this->actingAs($other)->postJson($url, ['action' => $action === 'process' ? 'cancel' : 'process'])->assertConflict();
+        $this->actingAs($other)->postJson($url, ['voucher_reference' => 'TEST-VOUCHER', 'cancellation_reason' => 'Reviewed and cancelled by Accounting.', 'action' => $action === 'process' ? 'cancel' : 'process'])->assertConflict();
         $this->assertDatabaseHas('pos_renewals', ['id' => $record->id, 'status' => $status, 'voucher_action_by' => $accountant->id]);
         $this->actingAs(User::find($record->created_by))->getJson('/utak-pos/records')->assertJsonPath('data.0.status', $status);
         config(['mail.default' => 'smtp']);
@@ -52,10 +52,10 @@ class PosVoucherActionTest extends TestCase
     {
         $record = $this->renewal();
         $url = route('utak-pos.voucher', $record);
-        $this->postJson($url, ['action' => 'process'])->assertUnauthorized();
+        $this->postJson($url, ['action' => 'process', 'voucher_reference' => 'TEST-VOUCHER'])->assertUnauthorized();
         foreach (['admin', 'finance', 'rso', 'it'] as $role) {
             foreach (['process', 'cancel'] as $action) {
-                $this->actingAs(User::factory()->create(['role' => $role]))->postJson($url, ['action' => $action])->assertForbidden();
+                $this->actingAs(User::factory()->create(['role' => $role]))->postJson($url, ['voucher_reference' => 'TEST-VOUCHER', 'cancellation_reason' => 'Reviewed and cancelled by Accounting.', 'action' => $action])->assertForbidden();
             }
         }
         $this->assertDatabaseHas('pos_renewals', ['id' => $record->id, 'status' => 'awaiting_voucher', 'voucher_action_by' => null, 'voucher_action_at' => null]);
@@ -68,7 +68,7 @@ class PosVoucherActionTest extends TestCase
         foreach ([[], ['action' => 'paid'], ['action' => ['process']]] as $payload) {
             $this->postJson(route('utak-pos.voucher', $record), $payload)->assertUnprocessable()->assertJsonValidationErrors('action');
         }
-        $this->postJson('/utak-pos/records/999999/voucher', ['action' => 'process'])->assertNotFound();
+        $this->postJson('/utak-pos/records/999999/voucher', ['action' => 'process', 'voucher_reference' => 'TEST-VOUCHER'])->assertNotFound();
         $this->assertDatabaseHas('pos_renewals', ['id' => $record->id, 'status' => 'awaiting_voucher', 'voucher_action_at' => null]);
     }
 }
