@@ -22,6 +22,10 @@ class CaptureSecurityActivity
                 $subject = collect($request->route()?->parameters() ?? [])->first(fn ($item) => $item instanceof \Illuminate\Database\Eloquent\Model);
                 SecurityAudit::record('access', 'attachment.download_requested', $subject, metadata: ['side' => $request->route('side')]);
             }
+            if ($response instanceof StreamedResponse && $response->getStatusCode() === 200 && $request->attributes->get('security_attachment_preview')) {
+                $subject = collect($request->route()?->parameters() ?? [])->first(fn ($item) => $item instanceof \Illuminate\Database\Eloquent\Model);
+                SecurityAudit::record('access', 'attachment.preview_requested', $subject, metadata: ['side' => $request->route('side')]);
+            }
             if ($request->route()?->getName() === 'security-audit' && $response->getStatusCode() === 200) SecurityAudit::record('access', 'audit.viewed');
             $response->headers->set('X-Request-ID', SecurityAudit::context($request));
             return $response;

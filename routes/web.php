@@ -25,11 +25,11 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware(['auth', 'active'])->group(function () {
-    Route::get('/request-revisions/{revision}/attachment/{side}', function (\App\Models\RequestRevision $revision, string $side) {
+    Route::get('/request-revisions/{revision}/attachment/{side}', function (Request $request, \App\Models\RequestRevision $revision, string $side) {
         abort_unless(in_array($side, ['before', 'after'], true), 404);
         $snapshot = $revision->{$side};
         abort_unless(!empty($snapshot['attachment_path']) && \Illuminate\Support\Facades\Storage::disk('local')->exists($snapshot['attachment_path']), 404);
-        return \Illuminate\Support\Facades\Storage::disk('local')->download($snapshot['attachment_path'], $snapshot['attachment_name'], ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store']);
+        return \App\Services\PrivateAttachments::respond($request, $snapshot['attachment_path'], $snapshot['attachment_name']);
     })->name('request-revisions.attachment');
     Route::get('/security-audit', function (Request $request, AuthController $auth) {
         abort_unless($request->user()->role === 'admin', 403);

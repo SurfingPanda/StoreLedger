@@ -94,13 +94,11 @@ class InternetSoaController extends Controller
         return response()->json(['message' => 'Payment recorded and SOA request marked as paid.'], 201);
     }
 
-    public function paymentProof(InternetSoa $internetSoa): StreamedResponse
+    public function paymentProof(Request $request, InternetSoa $internetSoa): StreamedResponse
     {
         $payment = $internetSoa->payment;
         abort_unless($payment && Storage::disk('local')->exists($payment->proof_path), 404);
-        return Storage::disk('local')->download($payment->proof_path, $payment->proof_name, [
-            'X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store',
-        ]);
+        return \App\Services\PrivateAttachments::respond($request, $payment->proof_path, $payment->proof_name);
     }
 
     public function details(Request $request, InternetSoa $internetSoa): JsonResponse
@@ -260,12 +258,9 @@ class InternetSoaController extends Controller
         return response()->json(['message' => 'Internet SOA saved and queued for Accounting voucher processing.'], 201);
     }
 
-    public function attachment(InternetSoa $internetSoa): StreamedResponse
+    public function attachment(Request $request, InternetSoa $internetSoa): StreamedResponse
     {
         abort_unless($internetSoa->attachment_path && Storage::disk('local')->exists($internetSoa->attachment_path), 404);
-        return Storage::disk('local')->download($internetSoa->attachment_path, $internetSoa->attachment_name, [
-            'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'private, no-store',
-        ]);
+        return \App\Services\PrivateAttachments::respond($request, $internetSoa->attachment_path, $internetSoa->attachment_name);
     }
 }

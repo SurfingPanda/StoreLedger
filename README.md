@@ -238,3 +238,10 @@ Only active **RSO** and **Admin** accounts can submit Rental, Electricity and Wa
 The login checkbox uses a native checked/unchecked form control and sends an explicit boolean. Checked sign-ins issue Laravel's encrypted, HTTP-only remember cookie with a default 30-day lifetime (`AUTH_REMEMBER_MINUTES=43200`). A remembered cookie can restore access after the ordinary session expires or the browser is reopened, including for users whose account session version has advanced. Passwords are not stored in browser storage. Browser privacy settings must permit the site's cookies.
 
 Unchecked sign-ins explicitly expire an older remember cookie. Signing out, disabling an account, changing its password, or changing security-sensitive account details continues to revoke remembered access. Normal session expiration follows `SESSION_EXPIRE_ON_CLOSE` and `SESSION_LIFETIME`; browsers that restore session cookies can retain ordinary sessions according to their own settings.
+
+
+### Attachment previews
+
+Saved SOAs, payment proofs and earlier SOA versions open in an in-app preview dialog. PDFs use the browser's built-in PDF viewer; PNG/JPEG images have zoom and fit controls. Download remains available, with an authenticated **Open in new tab** option for browsers with limited embedded PDF support. Missing files, expired sessions and unsupported formats show a readable error and retry/download options.
+
+Previews use the existing authenticated, module-scoped file endpoints with `?preview=1`. Stored bytes determine the content type; only PDF, PNG and JPEG may be served inline. Other files remain downloadable but cannot be rendered inline through this feature. Responses are private/no-store, disable MIME sniffing, and restrict framing to the same origin. No public storage URL is introduced. Opening a preview records `attachment.preview_requested` in the security audit log; downloads retain their separate audit event. The browser fetches the file into memory and releases its object URL when the dialog closes. No third-party preview service receives the files.

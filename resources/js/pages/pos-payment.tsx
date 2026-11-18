@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { CheckCircle2, CreditCard, Download, LoaderCircle } from 'lucide-react';
+import { CheckCircle2, CreditCard, LoaderCircle } from 'lucide-react';
+import AttachmentPreview from '@/components/attachment-preview';
 import DuplicateBills from '@/components/duplicate-bills';
 import { type DuplicateBill } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,7 @@ export default function PosPayment({ payment, canPay, amount, base, disabled, on
       <div><dt>Payment method</dt><dd>{methods[payment.method] ?? payment.method}</dd></div><div><dt>Payment reference</dt><dd>{payment.reference}</dd></div>
       <div><dt>Recorded by</dt><dd>{payment.recorded_by?.name ?? 'Unknown user'}</dd></div><div><dt>Date recorded</dt><dd>{new Date(payment.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</dd></div>
       {payment.notes && <div className="payment-notes"><dt>Payment notes</dt><dd>{payment.notes}</dd></div>}
-    </dl><div className="payment-proof-link"><a className="soa-download" href={payment.proof_url}><Download size={16} />{payment.proof_name}</a></div></> : <form ref={form} className="payment-form" onSubmit={save} aria-busy={saving}>
+    </dl><div className="payment-proof-link"><AttachmentPreview url={payment.proof_url} name={payment.proof_name} label="View proof of payment" /></div></> : <form ref={form} className="payment-form" onSubmit={save} aria-busy={saving}>
       <DuplicateBills matches={duplicates} />{error && <div className="form-alert" role="alert">{error}</div>}
       <fieldset disabled={saving || disabled} className="soa-form-fields">
         <div className="payment-total"><span>AMOUNT TO RECORD</span><strong>{money(amount)}</strong><small>Full payment for this request</small></div>

@@ -89,13 +89,11 @@ class PosRenewalController extends Controller
         return response()->json(['message' => 'Payment recorded and renewal marked as paid.'], 201);
     }
 
-    public function paymentProof(PosRenewal $posRenewal): StreamedResponse
+    public function paymentProof(Request $request, PosRenewal $posRenewal): StreamedResponse
     {
         $payment = $posRenewal->payment;
         abort_unless($payment && Storage::disk('local')->exists($payment->proof_path), 404);
-        return Storage::disk('local')->download($payment->proof_path, $payment->proof_name, [
-            'X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store',
-        ]);
+        return \App\Services\PrivateAttachments::respond($request, $payment->proof_path, $payment->proof_name);
     }
 
     public function details(Request $request, PosRenewal $posRenewal): JsonResponse

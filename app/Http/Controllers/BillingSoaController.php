@@ -107,9 +107,7 @@ class BillingSoaController extends Controller
         abort_unless($billingSoa->module === $request->route('module'), 404);
         $payment = $billingSoa->payment;
         abort_unless($payment && Storage::disk('local')->exists($payment->proof_path), 404);
-        return Storage::disk('local')->download($payment->proof_path, $payment->proof_name, [
-            'X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store',
-        ]);
+        return \App\Services\PrivateAttachments::respond($request, $payment->proof_path, $payment->proof_name);
     }
 
     public function details(Request $request, BillingSoa $billingSoa): JsonResponse
@@ -277,9 +275,6 @@ class BillingSoaController extends Controller
     {
         abort_unless($billingSoa->module === $request->route('module'), 404);
         abort_unless($billingSoa->attachment_path && Storage::disk('local')->exists($billingSoa->attachment_path), 404);
-        return Storage::disk('local')->download($billingSoa->attachment_path, $billingSoa->attachment_name, [
-            'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'private, no-store',
-        ]);
+        return \App\Services\PrivateAttachments::respond($request, $billingSoa->attachment_path, $billingSoa->attachment_name);
     }
 }
