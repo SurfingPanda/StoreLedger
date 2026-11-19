@@ -794,3 +794,47 @@ body.workspace-document>#app{width:100%;height:100%;min-height:0;overflow:hidden
  .admin-shell :is(.pos-table-toolbar,.request-filter-panel,.directory-filters,.directory-toolbar,.user-register-controls,.audit-filters,.register-controls,.automation-record-controls) :is(select,input:not([type=checkbox])){font-size:16px}
 }
 @media(max-width:360px){.mobile-record-cards{padding:12px}.mobile-record-card{padding:13px}.mobile-record-card>dl{gap:13px 10px}.admin-shell .table-pagination-controls{justify-content:center}}
+
+/* Personal notification inbox. */
+.notification-button{position:relative}
+.notification-button>.notification-unread-badge{position:absolute;width:auto;right:-7px;top:-6px;min-width:19px;height:19px;padding:0 4px;display:flex;align-items:center;justify-content:center;background:#c93740;color:#fff;border:2px solid #fff;border-radius:12px;font-size:10px;font-weight:700;line-height:1}
+.admin-shell .notification-dropdown{width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 95px);display:flex;flex-direction:column;overflow:hidden}
+.admin-shell .notification-dropdown .notification-scroll{padding:0;overflow-y:auto;overscroll-behavior:contain;min-height:0;max-height:none}
+.inbox-toolbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;gap:12px;border-bottom:1px solid #e6ecf7}
+.inbox-tabs{display:flex;gap:5px}
+.inbox-tabs button,.inbox-refresh{min-height:40px;padding:8px 12px;border-radius:6px;font-size:12px;color:#546b90}
+.inbox-tabs button[aria-pressed="true"]{background:#edf2ff;color:#244cc0;font-weight:600}
+.inbox-refresh{display:flex;align-items:center;justify-content:center;min-width:40px}
+.inbox-read-all{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 16px;color:#697c99;font-size:11px;border-bottom:1px solid #e6ecf7}
+.inbox-read-all button,.inbox-item-actions button{display:inline-flex;align-items:center;gap:5px;min-height:40px;padding:8px 4px;color:#3156bf;font-size:11px}
+.notification-inbox button:disabled,.notification-inbox button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
+.inbox-items{list-style:none;padding:0;margin:0}
+.inbox-items>li{padding:14px 16px 7px;border-bottom:1px solid #e6ecf7;background:#fff}
+.inbox-items>li.inbox-unread{background:#f5f8ff}
+.inbox-record-link{display:flex;gap:11px;min-height:44px;border-radius:5px;text-decoration:none!important}
+.inbox-event-icon{width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:9px;background:#edf2ff;color:#3156bf}
+.inbox-kind-overdue{background:#fff0f1;color:#b93844}
+.inbox-kind-update{background:#eaf6ee;color:#2e7847}
+.inbox-kind-resolved{background:#edf0f5;color:#6b7890}
+.inbox-event-copy{display:block;min-width:0;flex:1}
+.inbox-event-copy>strong{display:flex;align-items:center;gap:7px;color:#29446f;font-size:13px;line-height:1.5}
+.inbox-unread-dot{width:6px;height:6px;border-radius:50%;background:#3158cb;flex-shrink:0}
+.inbox-event-body{display:block;color:#526988;font-size:12px;line-height:1.65;overflow-wrap:anywhere;margin-top:4px}
+.inbox-event-copy time{display:block;color:#6a7c98;font-size:10px;margin-top:7px}
+.inbox-item-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-left:45px;color:#6a7d99;font-size:10px}
+.inbox-resolved-label{display:inline-flex;align-items:center;gap:4px}
+.inbox-empty{padding:28px 18px;text-align:center;color:#657b9c;font-size:12px;line-height:1.7}
+.inbox-empty>svg{margin:0 auto 10px;color:#5272bf}
+.inbox-empty strong{display:block;color:#35527e;font-size:14px;margin-bottom:3px}
+.inbox-error{padding:12px 16px;background:#fff1f2;color:#a53c46;font-size:12px;line-height:1.6}
+.inbox-error>button{margin-left:8px;text-decoration:underline;min-height:40px}
+.inbox-record-link:hover .inbox-event-copy>strong{text-decoration:underline}
+.notification-inbox :is(a,button,select):focus-visible{outline:2px solid #3158bf;outline-offset:2px}
+@media(max-width:700px){.admin-shell .notification-dropdown{position:fixed;top:72px;right:12px;left:12px;width:auto;max-height:calc(100dvh - 88px)}.notification-inbox button{min-height:44px;touch-action:manipulation}.inbox-refresh{min-width:44px}}
+
+.admin-shell .workspace-menus .notification-button{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+@media(max-width:700px){.admin-shell .notification-dropdown .activity-close{width:44px;height:44px;min-width:44px}}
+
+.inbox-load-more{padding:10px 16px;text-align:center;border-top:1px solid #e6ecf7}
+.inbox-load-more button{min-height:44px;padding:9px 16px;color:#3156bf;font-size:12px;border-radius:6px}
+.inbox-load-more button:hover:not([aria-disabled="true"]){background:#edf2ff}

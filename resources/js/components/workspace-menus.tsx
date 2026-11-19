@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell, ChevronDown, LogOut, Settings, UsersRound, X } from 'lucide-react';
 import type { AppData } from '@/lib/auth';
-import { RecentActivity } from '@/pages/dashboard';
+import NotificationInbox, { useNotificationInbox } from '@/components/notification-inbox';
 
 export default function WorkspaceMenus({ data, roleLabel, busy, logout }: {
   data: AppData; roleLabel: string; busy: boolean; logout: () => Promise<void>;
 }) {
   const [open, setOpen] = useState<'notifications' | 'account' | null>(null);
+  const inbox = useNotificationInbox(data, open === 'notifications');
+  const unread = inbox.result?.unread_count ?? 0;
   const root = useRef<HTMLDivElement>(null);
   const bell = useRef<HTMLButtonElement>(null);
   const account = useRef<HTMLButtonElement>(null);
@@ -30,15 +32,18 @@ export default function WorkspaceMenus({ data, roleLabel, busy, logout }: {
   }, [open]);
 
   return <div className="workspace-menus" ref={root} onBlur={event => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node)) setOpen(null);
+    // A temporarily disabled or removed control may blur without a new focus target.
+    // Outside pointer clicks and Escape are handled above.
+    if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) setOpen(null);
   }}>
+    <span className="sr-only" role="status">{inbox.result ? `${unread} unread notifications` : ''}</span>
     <div className="topbar-menu-anchor">
-      <button ref={bell} className="notification-button" aria-label="Recent activity" aria-expanded={open === 'notifications'} aria-controls="notification-dropdown" onClick={() => setOpen(open === 'notifications' ? null : 'notifications')}>
-        <Bell size={19} />
+      <button ref={bell} className="notification-button" aria-label={`Notifications, ${unread} unread`} aria-expanded={open === 'notifications'} aria-controls="notification-dropdown" onClick={() => setOpen(open === 'notifications' ? null : 'notifications')}>
+        <Bell size={19} />{unread > 0 && <span className="notification-unread-badge" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}
       </button>
-      {open === 'notifications' && <section id="notification-dropdown" className="topbar-dropdown notification-dropdown" aria-label="Recent activity">
-        <div className="dropdown-heading"><div><strong>Recent activity</strong><p>Latest request and payment updates</p></div><button type="button" className="activity-close" aria-label="Close recent activity" onClick={() => { setOpen(null); bell.current?.focus(); }}><X size={16} /></button></div>
-        <div className="notification-scroll"><RecentActivity data={data} /></div>
+      {open === 'notifications' && <section id="notification-dropdown" className="topbar-dropdown notification-dropdown" aria-label="Notifications">
+        <div className="dropdown-heading"><div><strong>Notifications</strong><p>Requests and updates for your role</p></div><button type="button" className="activity-close" aria-label="Close notifications" onClick={() => { setOpen(null); bell.current?.focus(); }}><X size={16} /></button></div>
+        <div className="notification-scroll"><NotificationInbox inbox={inbox} /></div>
       </section>}
     </div>
     <div className="topbar-menu-anchor">

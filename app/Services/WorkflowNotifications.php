@@ -10,12 +10,14 @@ class WorkflowNotifications
 {
     public static function voucherProcessed(Model $record): void
     {
+        RequestInbox::progress($record, 'vouchered');
         self::capture($record, 'finance_payment');
         self::capture($record, 'rso_voucher_processed');
     }
 
     public static function paymentProcessed(Model $record): void
     {
+        RequestInbox::progress($record, 'paid');
         self::capture($record, 'rso_payment_processed');
     }
 

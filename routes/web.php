@@ -26,6 +26,9 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/notifications', [\App\Http\Controllers\InboxController::class, 'index'])->name('notifications');
+    Route::post('/notifications/read-all', [\App\Http\Controllers\InboxController::class, 'readAll']);
+    Route::post('/notifications/{notification}/read', [\App\Http\Controllers\InboxController::class, 'read'])->whereNumber('notification');
     Route::get('/request-revisions/{revision}/attachment/{side}', function (Request $request, \App\Models\RequestRevision $revision, string $side) {
         abort_unless(in_array($side, ['before', 'after'], true), 404);
         $snapshot = $revision->{$side};

@@ -6,7 +6,7 @@ export type AppData = {
   loggedOut?: boolean;
   token: string;
   user: { name: string; email: string; role: string } | null;
-  urls: Record<'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'dashboardRecords' | 'dashboardActivity' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'electricity' | 'electricityRecords' | 'rental' | 'rentalRecords' | 'water' | 'waterRecords' | 'settings' | 'notificationSettings' | 'users' | 'userRecords' | 'directory' | 'directoryRecords' | 'automationHealth' | 'automationHealthRecords' | 'securityAudit' | 'securityAuditRecords', string>;
+  urls: Record<'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'dashboardRecords' | 'dashboardActivity' | 'inbox' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'electricity' | 'electricityRecords' | 'rental' | 'rentalRecords' | 'water' | 'waterRecords' | 'settings' | 'notificationSettings' | 'users' | 'userRecords' | 'directory' | 'directoryRecords' | 'automationHealth' | 'automationHealthRecords' | 'securityAudit' | 'securityAuditRecords', string>;
 };
 
 export type DuplicateBill = { id: number; store_name: string; provider: string | null; billing_period: string; amount: string; status: string; detail_url: string };

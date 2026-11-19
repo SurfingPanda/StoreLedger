@@ -38,6 +38,7 @@ class AuthController extends Controller
                 'dashboard' => route('dashboard'),
                 'dashboardRecords' => route('dashboard.records'),
                 'dashboardActivity' => route('dashboard.activity'),
+                'inbox' => route('notifications'),
                 'pos' => route('utak-pos'),
                 'posRecords' => route('utak-pos.records'),
                 'internetSoa' => route('internet-soa'),
