@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PosRenewalComment extends Model
 {
     protected $fillable = ['body'];
+    protected $hidden = ['attachment_path'];
 
     public function author(): BelongsTo
     {

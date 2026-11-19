@@ -10,6 +10,7 @@ use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\AutomationHealthController;
 use App\Http\Controllers\SecurityAuditController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -65,6 +66,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         })->defaults('module', $module)->name($module.'.detail');
         Route::get('/'.$module.'/records/{billingSoa}/details', [BillingSoaController::class, 'details'])->defaults('module', $module)->name($module.'.details');
         Route::post('/'.$module.'/records/{billingSoa}/comments', [BillingSoaController::class, 'comment'])->defaults('module', $module)->name($module.'.comments');
+        Route::get('/'.$module.'/records/{billingSoa}/comments/{commentId}/attachment', [BillingSoaController::class, 'commentAttachment'])->whereNumber('commentId')->defaults('module', $module)->name($module.'.comment-attachment');
         Route::post('/'.$module.'/records/{billingSoa}/duplicate-cancel', [BillingSoaController::class, 'cancelDuplicate'])->defaults('module', $module);
         Route::post('/'.$module.'/records/{billingSoa}/return', [BillingSoaController::class, 'returnRequest'])->defaults('module', $module);
         Route::post('/'.$module.'/records/{billingSoa}/resubmit', [BillingSoaController::class, 'resubmit'])->defaults('module', $module);
@@ -83,6 +85,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/internet-soa/records/{internetSoa}', fn (Request $request, AuthController $auth, \App\Models\InternetSoa $internetSoa) => $auth->page($request, 'internet-voucher'))->name('internet-soa.detail');
     Route::get('/internet-soa/records/{internetSoa}/details', [InternetSoaController::class, 'details'])->name('internet-soa.details');
     Route::post('/internet-soa/records/{internetSoa}/comments', [InternetSoaController::class, 'comment'])->name('internet-soa.comments');
+    Route::get('/internet-soa/records/{internetSoa}/comments/{commentId}/attachment', [InternetSoaController::class, 'commentAttachment'])->whereNumber('commentId')->name('internet-soa.comment-attachment');
     Route::post('/internet-soa/records/{internetSoa}/duplicate-cancel', [InternetSoaController::class, 'cancelDuplicate']);
     Route::post('/internet-soa/records/{internetSoa}/return', [InternetSoaController::class, 'returnRequest']);
     Route::post('/internet-soa/records/{internetSoa}/resubmit', [InternetSoaController::class, 'resubmit']);
@@ -95,9 +98,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/internet-soa/records/{internetSoa}/payment-proof', [InternetSoaController::class, 'paymentProof'])->name('internet-soa.payment-proof');
     Route::get('/internet-soa/{internetSoa}/attachment', [InternetSoaController::class, 'attachment'])->name('internet-soa.attachment');
     Route::get('/settings', function (Request $request, AuthController $auth) {
-        abort_unless(in_array($request->user()->role, ['admin', 'accounting'], true), 403);
         return $auth->page($request, 'settings');
     })->name('settings');
+    Route::get('/settings/profile', [ProfileController::class, 'show'])->name('settings.profile');
+    Route::post('/settings/profile', [ProfileController::class, 'update'])->middleware('throttle:10,1')->name('settings.profile.update');
+    Route::post('/settings/password', [ProfileController::class, 'password'])->middleware('throttle:5,1')->name('settings.password.update');
     Route::get('/settings/notifications', [NotificationSettingsController::class, 'index'])->name('settings.notifications');
     Route::post('/settings/notifications', [NotificationSettingsController::class, 'store']);
     Route::get('/utak-pos', fn (Request $request, AuthController $auth) => $auth->page($request, 'utak-pos'))->name('utak-pos');
@@ -106,6 +111,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/utak-pos/records/{posRenewal}', fn (Request $request, AuthController $auth, \App\Models\PosRenewal $posRenewal) => $auth->page($request, 'pos-voucher'))->name('utak-pos.detail');
     Route::get('/utak-pos/records/{posRenewal}/details', [PosRenewalController::class, 'details'])->name('utak-pos.details');
     Route::post('/utak-pos/records/{posRenewal}/comments', [PosRenewalController::class, 'comment'])->name('utak-pos.comments');
+    Route::get('/utak-pos/records/{posRenewal}/comments/{commentId}/attachment', [PosRenewalController::class, 'commentAttachment'])->whereNumber('commentId')->name('utak-pos.comment-attachment');
     Route::post('/utak-pos/records/{posRenewal}/payment', [PosRenewalController::class, 'payment'])->name('utak-pos.payment');
     Route::get('/utak-pos/records/{posRenewal}/payment-proof', [PosRenewalController::class, 'paymentProof'])->name('utak-pos.payment-proof');
     Route::post('/utak-pos/records/{posRenewal}/duplicate-cancel', [PosRenewalController::class, 'cancelDuplicate']);

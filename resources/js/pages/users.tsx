@@ -12,7 +12,7 @@ type Results = { users: { data: Account[]; total: number; last_page: number; fro
 type Editor = { kind: 'create' } | { kind: 'edit' | 'password' | 'status'; account: Account };
 const roles: Record<string, { label: string; detail: string }> = {
   admin: { label: 'Admin', detail: 'Manage accounts, records, recurring schedules, and workspace settings.' },
-  accounting: { label: 'Accounting', detail: 'Process vouchers, add comments, and manage notification recipients.' },
+  accounting: { label: 'Accounting', detail: 'Process vouchers, add comments, and review request history.' },
   finance: { label: 'Finance', detail: 'Record payments, attach payment proof, and add comments.' },
   it: { label: 'IT', detail: 'Review the dashboard, monitoring records, and request history.' },
   rso: { label: 'RSO', detail: 'Review requests and receive configured workflow email updates.' },

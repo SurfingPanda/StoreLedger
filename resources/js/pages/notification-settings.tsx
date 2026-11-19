@@ -16,7 +16,7 @@ const labels: Record<string, { title: string; detail: string; available: boolean
   rso_payment_processed: { title: 'RSO · Payment processed', detail: 'Recipients for an update when Finance records a completed payment.', available: true },
 };
 export default function NotificationSettings({ data }: { data: AppData }) {
-  const canEdit = ['admin', 'accounting'].includes(data.user?.role ?? '');
+  const canEdit = data.user?.role === 'admin';
   const [rows, setRows] = useState<Setting[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

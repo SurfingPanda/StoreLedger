@@ -1,6 +1,8 @@
+import CommentAttachment, { attachmentSize, type CommentFile } from '@/components/comment-attachment';
+import CancelRequestDialog from '@/components/cancel-request-dialog';
 import { useTableSort } from '@/components/table-sort';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, CheckCircle2, ClipboardList, History, LoaderCircle, MessageSquare } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ClipboardList, History, LoaderCircle, MessageSquare, Paperclip, X } from 'lucide-react';
 import AttachmentPreview from '@/components/attachment-preview';
 import DuplicateBills from '@/components/duplicate-bills';
 import { type DuplicateBill } from '@/lib/auth';
@@ -16,7 +18,7 @@ import { requestModule } from '@/lib/request-module';
 
 type Person = { name: string; role: string };
 type Renewal = { cancellation_reason: string | null; workflow_version: number; billing_account_id: number | null; revision_target: string | null; revision_reason: string | null; returned_at: string | null; store_id: number | null; store: { code: string; name: string } | null; account_number: string | null; billing_account: { billing_cycle_months: number | null } | null; duplicate_cancelled_at: string | null; provider: string | null; billing_period: string | null; id: number; store_name: string; amount: string; renewal_date: string; status: string; created_at: string; creator: Person | null; voucher_actor: Person | null; voucher_action_at: string | null; voucher_reference: string | null; detail_url?: string; payment: Payment | null; recurrence: Recurrence | null; recurring_schedule_id: number | null; due_date?: string; attachment_url?: string; attachment_name?: string };
-type Comment = { id: number; body: string; created_at: string; author: Person | null };
+type Comment = CommentFile & { id: number; body: string; created_at: string; author: Person | null };
 type Page<T> = { data: T[]; current_page: number; last_page: number; total: number };
 type Details = { revisions: RevisionHistory; revision_permissions: RevisionPermissions; duplicates: DuplicateBill[]; record: Renewal; history: Page<Renewal>; comments: Page<Comment> };
 const money = (value: string) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value));
@@ -39,10 +41,15 @@ export default function PosVoucher({ data }: { data: AppData }) {
   const [success, setSuccess] = useState('');
   const [revision, setRevision] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
+  const [historyPerPage, setHistoryPerPage] = useState(10);
   const historySort = useTableSort('date', 'desc', () => setHistoryPage(1));
   const [commentsPage, setCommentsPage] = useState(1);
   const [revisionsPage, setRevisionsPage] = useState(1);
+  const [revisionsPerPage, setRevisionsPerPage] = useState(10);
   const [body, setBody] = useState('');
+  const [commentFile, setCommentFile] = useState<File | null>(null);
+  const [commentError, setCommentError] = useState('');
+  const commentFileInput = useRef<HTMLInputElement>(null);
   const [reference, setReference] = useState('');
   const [cancellationReason, setCancellationReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,7 +58,7 @@ export default function PosVoucher({ data }: { data: AppData }) {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setLoadError('');
-    fetch(`${base}/details?history_sort=${historySort.sort}&history_direction=${historySort.direction}&history_page=${historyPage}&comments_page=${commentsPage}&revisions_page=${revisionsPage}`, { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: controller.signal })
+    fetch(`${base}/details?history_per_page=${historyPerPage}&revisions_per_page=${revisionsPerPage}&history_sort=${historySort.sort}&history_direction=${historySort.direction}&history_page=${historyPage}&comments_page=${commentsPage}&revisions_page=${revisionsPage}`, { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: controller.signal })
       .then(async response => {
         if (!response.ok) throw new Error(response.status === 404 ? 'This renewal could not be found.' : 'Could not load the voucher details. Refresh or try again.');
         return response.json() as Promise<Details>;
@@ -60,21 +67,21 @@ export default function PosVoucher({ data }: { data: AppData }) {
       .catch(error => { if (!controller.signal.aborted) setLoadError(error.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [base, isSoa, historyPage, commentsPage, revisionsPage, revision, historySort.sort, historySort.direction]);
+  }, [base, isSoa, historyPage, commentsPage, revisionsPage, revision, historySort.sort, historySort.direction, historyPerPage, revisionsPerPage]);
 
-  async function submit(kind: 'comment' | 'process' | 'cancel') {
+  async function submit(kind: 'comment' | 'process' | 'cancel', commentData?: FormData) {
     if (busyRef.current) return;
-    busyRef.current = true; setBusy(true); setError(''); setSuccess('');
+    busyRef.current = true; setBusy(true); setError(''); setCommentError(''); setSuccess('');
     try {
-      const result = await post<{ message: string }>(`${base}/${kind === 'comment' ? 'comments' : kind === 'cancel' && record?.status === 'vouchered' ? 'duplicate-cancel' : 'voucher'}`, kind === 'comment' ? { body } : { workflow_version: record?.workflow_version, action: kind, voucher_reference: reference, cancellation_reason: cancellationReason });
+      const result = await post<{ message: string }>(`${base}/${kind === 'comment' ? 'comments' : kind === 'cancel' && record?.status === 'vouchered' ? 'duplicate-cancel' : 'voucher'}`, kind === 'comment' ? commentData! : { workflow_version: record?.workflow_version, action: kind, voucher_reference: reference, cancellation_reason: cancellationReason });
       setSuccess(result.message);
-      if (kind === 'comment') { setBody(''); setCommentsPage(1); }
+      if (kind === 'comment') { setBody(''); setCommentFile(null); if (commentFileInput.current) commentFileInput.current.value = ''; setCommentsPage(1); }
       setAction(null); setRevision(value => value + 1);
     } catch (error) {
-      setError(error instanceof RequestError ? (Object.values(error.errors).flat().join(' ') || error.message) : 'Could not save. Please try again.');
+      (kind === 'comment' ? setCommentError : setError)(error instanceof RequestError ? (Object.values(error.errors).flat().join(' ') || error.message) : 'Could not save. Please try again.');
     } finally { busyRef.current = false; setBusy(false); }
   }
-  function comment(event: FormEvent) { event.preventDefault(); void submit('comment'); }
+  function comment(event: FormEvent<HTMLFormElement>) { event.preventDefault(); void submit('comment', new FormData(event.currentTarget)); }
   const record = details?.record;
   return <div className="pos-page voucher-detail-page">
     <a className="voucher-back" href={listUrl}><ArrowLeft size={16} />Back to {moduleLabel}</a>
@@ -114,17 +121,29 @@ export default function PosVoucher({ data }: { data: AppData }) {
 
       </div>
       <section id="request-activity" className="register-panel voucher-activity"><div className="section-heading"><div><h2><MessageSquare size={18} />Activity & comments</h2><p>Notes from Accounting and Finance, with the request timeline.</p></div></div>
-        {(accounting || finance) && <form className="voucher-comment-form" onSubmit={comment}><label htmlFor="voucher-comment">Add a comment</label><textarea id="voucher-comment" value={body} onChange={event => setBody(event.target.value)} required maxLength={5000} rows={4} disabled={busy} placeholder="Add voucher notes, follow-ups, or processing details..." /><div><small>{body.length}/5000</small><Button size="sm" disabled={busy || !body.trim()} type="submit">{busy ? 'Saving...' : 'Add comment'}</Button></div></form>}
+        {(accounting || finance) && <form className="voucher-comment-form" onSubmit={comment} encType="multipart/form-data">
+          <label htmlFor="voucher-comment">Add a comment</label>
+          <textarea id="voucher-comment" name="body" value={body} onChange={event => setBody(event.target.value)} required={!commentFile} maxLength={5000} rows={4} disabled={busy} placeholder="Add voucher notes, follow-ups, or processing details..." />
+          <input ref={commentFileInput} id="comment-attachment" name="attachment" type="file" hidden disabled={busy} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.csv,.txt" aria-label="Attach a file or image to your comment" onChange={event => {
+            const file = event.target.files?.[0] ?? null; setCommentError('');
+            if (file && file.size > 10 * 1024 * 1024) { setCommentError('Choose a file smaller than 10 MB.'); event.target.value = ''; setCommentFile(null); return; }
+            setCommentFile(file);
+          }} />
+          {commentFile && <div className="comment-selected-file"><Paperclip size={17} /><span><strong>{commentFile.name}</strong><small>{attachmentSize(commentFile.size)}</small></span><button type="button" disabled={busy} aria-label="Remove selected attachment" onClick={() => { setCommentFile(null); if (commentFileInput.current) commentFileInput.current.value = ''; }}><X size={16} /></button></div>}
+          {commentError && <p className="field-error" role="alert">{commentError}</p>}
+          <div className="comment-compose-actions"><button type="button" className="comment-attach-button" disabled={busy} onClick={() => commentFileInput.current?.click()}><Paperclip size={15} />{commentFile ? 'Change attachment' : 'Attach file or image'}</button><small>{body.length}/5000</small><Button size="sm" disabled={busy || (!body.trim() && !commentFile)} type="submit">{busy ? 'Saving...' : 'Add comment'}</Button></div>
+          <p className="comment-upload-hint">PDF, JPG/PNG, Word, Excel, CSV or text. One file per comment, up to 10 MB.</p>
+        </form>}
         <div className="voucher-timeline">
           {record.payment && <article className="voucher-system-event"><strong>Payment completed</strong><small>{record.payment.recorded_by?.name} - {time(record.payment.created_at)}</small><p>{money(record.payment.amount)} paid. Reference: {record.payment.reference}</p><AttachmentPreview url={record.payment.proof_url} name={record.payment.proof_name} label="View proof of payment" /></article>}
           {record.voucher_action_at && <article className="voucher-system-event"><strong>{record.status === 'cancelled' && !record.duplicate_cancelled_at ? 'Request cancelled' : 'Voucher processed and sent to Finance'}</strong><small>{record.voucher_actor?.name ?? 'Unknown user'} · {time(record.voucher_action_at)}</small>{record.voucher_reference && <p>Voucher reference: {record.voucher_reference}</p>}</article>}
-          {details.comments.data.map(item => <article key={item.id}><strong>{item.author?.name ?? 'Unknown user'} <span>{item.author?.role}</span></strong><small>{time(item.created_at)}</small><p>{item.body}</p></article>)}
+          {details.comments.data.map(item => <article key={item.id}><strong>{item.author?.name ?? 'Unknown user'} <span>{item.author?.role}</span></strong><small>{time(item.created_at)}</small>{item.body && <p>{item.body}</p>}<CommentAttachment {...item} /></article>)}
           {!details.comments.total && <p className="voucher-no-comments">No comments yet.</p>}
           <article className="voucher-system-event"><strong>Request created</strong><small>{record.creator?.name ?? 'Unknown user'} · {time(record.created_at)}</small><p>{record.recurring_schedule_id && isSoa ? 'Recurring billing cycle created. The current SOA must be attached before voucher processing.' : 'Queued for Accounting voucher processing.'}</p></article>
         </div>
         <Pager total={details.comments.total} perPage={20} page={commentsPage} last={details.comments.last_page} disabled={loading || busy} change={setCommentsPage} label="comments" />
       </section>
-        <RevisionHistoryPanel history={details.revisions} disabled={loading || busy} onPage={setRevisionsPage} />
+        <RevisionHistoryPanel history={details.revisions} disabled={loading || busy} onPage={setRevisionsPage} perPage={revisionsPerPage} onPerPage={setRevisionsPerPage} />
         <section id="renewal-history" className="register-panel voucher-history voucher-history-full"><div className="section-heading"><div><h2><History size={18} />{isSoa ? 'Store SOA history' : 'Store renewal history'}</h2><p>Voucher dates, payments and references linked to this store ID, including previous store names.</p></div><span className="record-count">{details.history.total} {details.history.total === 1 ? 'record' : 'records'}</span></div>
           <div className="voucher-table-scroll" role="region" aria-label={isSoa ? 'Store SOA history' : 'Store renewal history'} tabIndex={0}><table className="ledger-table voucher-table voucher-audit-table"><thead><tr>{historySort.header('id', 'RECORD / CREATED')}{historySort.header('date', isSoa ? 'DUE DATE' : 'RENEWAL DATE')}{historySort.header('amount', 'AMOUNT', true)}{historySort.header('voucher_action_at', 'DATE VOUCHERED')}{historySort.header('paid_on', 'DATE PAID / PAYMENT')}{historySort.header('status', 'STATUS')}</tr></thead><tbody>{details.history.data.map(row => <tr key={row.id} className={row.id === record.id ? 'voucher-current-row' : ''}>
             <td><a className="history-record-link" href={row.detail_url}>{prefix}-{String(row.id).padStart(5, '0')}</a>{row.id === record.id && <span className="history-current-tag">Current</span>}<small className="history-meta">Created {time(row.created_at)}</small><small className="history-meta">By {row.creator?.name ?? 'Unknown user'}</small></td>
@@ -134,13 +153,14 @@ export default function PosVoucher({ data }: { data: AppData }) {
             <td>{row.payment ? <><strong className="history-date">{day(row.payment.paid_on)}</strong><small className="history-meta">{money(row.payment.amount)} / {row.payment.method.replaceAll('_', ' ')}</small><small className="history-reference">Ref: {row.payment.reference}</small><small className="history-meta">By {row.payment.recorded_by?.name ?? 'Unknown user'}</small><small className="history-meta">Recorded {time(row.payment.created_at)}</small>{row.payment.notes && <details className="history-payment-notes"><summary>Payment notes</summary><p>{row.payment.notes}</p></details>}</> : <span className="history-pending">{row.status === 'cancelled' ? 'Not paid' : row.status === 'awaiting_voucher' ? 'Awaiting voucher' : 'Awaiting payment'}</span>}</td>
             <td><span className={`status-pill ${row.status === 'paid' ? 'status-paid' : row.status === 'vouchered' ? 'status-finance' : row.status === 'awaiting_voucher' ? 'status-accounting' : 'status-review'}`}>{status(row.status)}</span>{row.duplicate_cancelled_at && <small className="history-meta">Duplicate cancelled {time(row.duplicate_cancelled_at)}</small>}{row.cancellation_reason && <details className="history-payment-notes"><summary>Cancellation reason</summary><p>{row.cancellation_reason}</p></details>}{row.status === 'cancelled' && !row.duplicate_cancelled_at && row.voucher_action_at && <><small className="history-meta">{time(row.voucher_action_at)}</small><small className="history-meta">By {row.voucher_actor?.name ?? 'Unknown user'}</small></>}</td>
           </tr>)}</tbody></table></div>
-          <Pager total={details.history.total} perPage={10} page={historyPage} last={details.history.last_page} disabled={loading || busy} change={setHistoryPage} label="history" />
+          <Pager total={details.history.total} perPage={historyPerPage} onPerPage={setHistoryPerPage} page={historyPage} last={details.history.last_page} disabled={loading || busy} change={setHistoryPage} label="history" />
         </section>
     </div>}
-    <Dialog open={!!action} onOpenChange={value => { if (!value && !busyRef.current) setAction(null); }}><DialogContent><DialogTitle>{action === 'process' ? 'Mark voucher processed?' : 'Cancel this request?'}</DialogTitle><DialogDescription>{action === 'process' ? 'Confirm that the voucher is ready. This records you as the processor and removes the request from the pending queue.' : 'This request will be marked cancelled. Its details, history, and comments will be kept.'}</DialogDescription>{action === 'cancel' && <div className="field-group"><label htmlFor="cancel-reason">Cancellation reason *</label><textarea id="cancel-reason" required rows={3} maxLength={5000} value={cancellationReason} disabled={busy} onChange={event => setCancellationReason(event.target.value)} placeholder="Explain why this request is being cancelled." /></div>}{error && <div className="form-alert" role="alert">{error}</div>}<div className="pos-form-actions"><Button variant="outline" disabled={busy} onClick={() => setAction(null)}>Go back</Button><Button disabled={busy || (action === 'cancel' ? !cancellationReason.trim() : !reference.trim())} onClick={() => action && void submit(action)}>{busy ? 'Saving...' : 'Confirm'}</Button></div></DialogContent></Dialog>
+    <CancelRequestDialog open={action === 'cancel'} onOpenChange={value => { if (!value) setAction(null); }} storeName={record?.store_name} recordLabel={record ? `${prefix}-${String(record.id).padStart(5, '0')}` : undefined} amount={record ? money(record.amount) : undefined} reason={cancellationReason} onReasonChange={setCancellationReason} busy={busy} error={error} onConfirm={() => void submit('cancel')} />
+    <Dialog open={action === 'process'} onOpenChange={value => { if (!value && !busyRef.current) setAction(null); }}><DialogContent><DialogTitle>Mark voucher processed?</DialogTitle><DialogDescription>Confirm that the voucher is ready. This records you as the processor and removes the request from the pending queue.</DialogDescription>{error && <div className="form-alert" role="alert">{error}</div>}<div className="pos-form-actions"><Button variant="outline" disabled={busy} onClick={() => setAction(null)}>Go back</Button><Button disabled={busy || !reference.trim()} onClick={() => void submit('process')}>{busy ? 'Saving...' : 'Confirm'}</Button></div></DialogContent></Dialog>
   </div>;
 }
 
-function Pager({ page, last, disabled, change, label, total, perPage }: { total: number; perPage: number; page: number; last: number; disabled: boolean; change: (page: number) => void; label: string }) {
-  return <TablePagination total={total} from={total ? (page - 1) * perPage + 1 : 0} to={Math.min(page * perPage, total)} page={page} lastPage={last} disabled={disabled} onPage={change} label={label} />;
+function Pager({ page, last, disabled, change, label, total, perPage, onPerPage }: { total: number; perPage: number; onPerPage?: (size: number) => void; page: number; last: number; disabled: boolean; change: (page: number) => void; label: string }) {
+  return <TablePagination total={total} from={total ? (page - 1) * perPage + 1 : 0} to={Math.min(page * perPage, total)} page={page} lastPage={last} disabled={disabled} onPage={change} label={label} perPage={perPage} onPerPage={onPerPage} />;
 }

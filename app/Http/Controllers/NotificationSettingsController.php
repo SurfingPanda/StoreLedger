@@ -13,7 +13,7 @@ class NotificationSettingsController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        abort_unless(in_array($request->user()->role, ['admin', 'accounting'], true), 403);
+        abort_unless($request->user()->role === 'admin', 403);
         return response()->json(['settings' => collect(NotificationSetting::EVENTS)->map(function ($role, $event) {
             $setting = NotificationSetting::find($event);
             return ['event' => $event, 'mode' => $setting?->mode ?? 'role', 'emails' => $setting?->emails ?? [],
@@ -24,7 +24,7 @@ class NotificationSettingsController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        abort_unless(in_array($request->user()->role, ['admin', 'accounting'], true), 403);
+        abort_unless($request->user()->role === 'admin', 403);
         $data = $request->validate([
             'settings' => ['required', 'array', 'size:'.count(NotificationSetting::EVENTS)],
             'settings.*.event' => ['required', Rule::in(array_keys(NotificationSetting::EVENTS)), 'distinct'],

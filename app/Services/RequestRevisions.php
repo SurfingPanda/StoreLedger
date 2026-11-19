@@ -33,10 +33,11 @@ class RequestRevisions
             'This request changed since you opened it. Refresh and review the latest version before continuing.');
     }
 
-    public static function history(Model $record)
+    public static function history(Model $record, Request $request)
     {
+        $data = $request->validate(['revisions_per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
         return RequestRevision::where('module', RequestModule::key($record))->where('request_id', $record->id)
-            ->with('actor')->orderByDesc('id')->paginate(10, ['*'], 'revisions_page')->through(function ($event) {
+            ->with('actor')->orderByDesc('id')->paginate((int) ($data['revisions_per_page'] ?? 10), ['*'], 'revisions_page')->through(function ($event) {
                 $result = $event->toArray();
                 foreach (['before', 'after'] as $side) {
                     if (!empty($result[$side]['attachment_path'])) {

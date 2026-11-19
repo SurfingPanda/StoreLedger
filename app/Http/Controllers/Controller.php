@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 abstract class Controller
 {
-    protected function pageSize(\Illuminate\Http\Request $request, int $default = 15): int
+    protected function pageSize(\Illuminate\Http\Request $request, int $default = 15, string $parameter = 'per_page'): int
     {
-        $validated = $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
+        $validated = $request->validate([$parameter => ['sometimes', 'integer', 'min:1', 'max:100']]);
 
-        return (int) ($validated['per_page'] ?? $default);
+        return (int) ($validated[$parameter] ?? $default);
     }
 }

@@ -17,6 +17,7 @@ use App\Services\DuplicateBills;
 use App\Services\DirectoryLinks;
 use App\Services\TableSort;
 use App\Services\RequestRevisions;
+use App\Services\RequestComments;
 
 class InternetSoaController extends Controller
 {
@@ -110,7 +111,7 @@ class InternetSoaController extends Controller
             'comments_page' => ['nullable', 'integer', 'min:1'],
         ]);
         $history = TableSort::history(DirectoryLinks::history($internetSoa)->with(['creator', 'voucherActor', 'payment.recordedBy']), $request, 'due_date')
-            ->paginate(10, ['*'], 'history_page');
+            ->paginate($this->pageSize($request, 10, 'history_per_page'), ['*'], 'history_page');
         $history->through(function ($record) {
             if ($record->payment) {
                 $record->payment->setAttribute('proof_url', route('internet-soa.payment-proof', $record));
@@ -124,22 +125,22 @@ class InternetSoaController extends Controller
         }
         return response()->json([
             'record' => array_merge($internetSoa->toArray(), ['attachment_url' => route('internet-soa.attachment', $internetSoa)]),
-            'revisions' => RequestRevisions::history($internetSoa),
+            'revisions' => RequestRevisions::history($internetSoa, $request),
             'revision_permissions' => RequestRevisions::permissions($request, $internetSoa),
             'duplicates' => DuplicateBills::matches($internetSoa),
             'history' => $history,
-            'comments' => $internetSoa->comments()->with('author')->orderByDesc('id')->paginate(20, ['*'], 'comments_page'),
+            'comments' => $internetSoa->comments()->with('author')->orderByDesc('id')->paginate(20, ['*'], 'comments_page')->through(fn ($comment) => RequestComments::present($comment, $internetSoa)),
         ]);
     }
 
     public function comment(Request $request, InternetSoa $internetSoa): JsonResponse
     {
-        abort_unless(in_array($request->user()->role, ['accounting', 'finance'], true), 403);
-        $data = $request->validate(['body' => ['required', 'string', 'max:5000']]);
-        $comment = $internetSoa->comments()->make($data);
-        $comment->user_id = $request->user()->id;
-        $comment->save();
-        return response()->json(['message' => 'Comment added.', 'comment' => $comment->load('author')], 201);
+        return response()->json(RequestComments::create($request, $internetSoa), 201);
+    }
+
+    public function commentAttachment(Request $request, InternetSoa $internetSoa, int $commentId): StreamedResponse
+    {
+        return RequestComments::attachment($request, $internetSoa, $commentId);
     }
 
     public function voucherAction(Request $request, InternetSoa $internetSoa): JsonResponse

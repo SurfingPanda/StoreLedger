@@ -17,6 +17,7 @@ use App\Services\DuplicateBills;
 use App\Services\DirectoryLinks;
 use App\Services\TableSort;
 use App\Services\RequestRevisions;
+use App\Services\RequestComments;
 
 class PosRenewalController extends Controller
 {
@@ -105,7 +106,7 @@ class PosRenewalController extends Controller
             'comments_page' => ['nullable', 'integer', 'min:1'],
         ]);
         $history = TableSort::history(DirectoryLinks::history($posRenewal)->with(['creator', 'voucherActor', 'payment.recordedBy']), $request, 'renewal_date')
-            ->paginate(10, ['*'], 'history_page');
+            ->paginate($this->pageSize($request, 10, 'history_per_page'), ['*'], 'history_page');
         $history->through(function ($record) {
             if ($record->payment) {
                 $record->payment->setAttribute('proof_url', route('utak-pos.payment-proof', $record));
@@ -119,22 +120,22 @@ class PosRenewalController extends Controller
         }
         return response()->json([
             'record' => $posRenewal,
-            'revisions' => RequestRevisions::history($posRenewal),
+            'revisions' => RequestRevisions::history($posRenewal, $request),
             'revision_permissions' => RequestRevisions::permissions($request, $posRenewal),
             'duplicates' => DuplicateBills::matches($posRenewal),
             'history' => $history,
-            'comments' => $posRenewal->comments()->with('author')->orderByDesc('id')->paginate(20, ['*'], 'comments_page'),
+            'comments' => $posRenewal->comments()->with('author')->orderByDesc('id')->paginate(20, ['*'], 'comments_page')->through(fn ($comment) => RequestComments::present($comment, $posRenewal)),
         ]);
     }
 
     public function comment(Request $request, PosRenewal $posRenewal): JsonResponse
     {
-        abort_unless(in_array($request->user()->role, ['accounting', 'finance'], true), 403);
-        $data = $request->validate(['body' => ['required', 'string', 'max:5000']]);
-        $comment = $posRenewal->comments()->make($data);
-        $comment->user_id = $request->user()->id;
-        $comment->save();
-        return response()->json(['message' => 'Comment added.', 'comment' => $comment->load('author')], 201);
+        return response()->json(RequestComments::create($request, $posRenewal), 201);
+    }
+
+    public function commentAttachment(Request $request, PosRenewal $posRenewal, int $commentId): StreamedResponse
+    {
+        return RequestComments::attachment($request, $posRenewal, $commentId);
     }
 
     public function voucherAction(Request $request, PosRenewal $posRenewal): JsonResponse

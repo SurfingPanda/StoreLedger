@@ -14,9 +14,9 @@ class NotificationSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_accounting_can_view_and_save_notification_recipients(): void
+    public function test_admin_can_view_and_save_notification_recipients(): void
     {
-        $this->actingAs(User::factory()->create(['role' => 'accounting']));
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
         $this->withoutVite()->get('/settings')->assertOk();
         $this->getJson('/settings/notifications')->assertOk()->assertJsonCount(count(NotificationSetting::EVENTS), 'settings');
         $settings = $this->settings();
@@ -33,12 +33,12 @@ class NotificationSettingsTest extends TestCase
         return collect(NotificationSetting::EVENTS)->map(fn ($role, $event) => ['event' => $event, 'mode' => 'role', 'emails' => []])->values()->all();
     }
 
-    public function test_other_roles_cannot_access_settings(): void
+    public function test_other_roles_get_personal_settings_but_cannot_access_notification_settings(): void
     {
         $this->get('/settings')->assertRedirect('/login');
-        foreach (['finance', 'rso', 'it'] as $role) {
+        foreach (['accounting', 'finance', 'rso', 'it'] as $role) {
             $this->actingAs(User::factory()->create(['role' => $role]));
-            $this->get('/settings')->assertForbidden();
+            $this->withoutVite()->get('/settings')->assertOk();
             $this->getJson('/settings/notifications')->assertForbidden();
             $this->postJson('/settings/notifications', ['settings' => $this->settings()])->assertForbidden();
         }

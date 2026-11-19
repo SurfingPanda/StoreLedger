@@ -257,3 +257,9 @@ Returned/reopened bills notify the eligible Admin/RSO team or Accounting. Correc
 The scheduler runs billing:send-overdue-reminders daily at 9:00 AM Asia/Manila. Overdue requests awaiting vouchers or Accounting corrections notify Accounting; those awaiting payment notify Finance; those awaiting SOAs or requester corrections notify the eligible Admin/RSO team. New recipient settings support registered teams, custom addresses, or notifications off. A delivery ledger deduplicates each bill, review cycle, stage, recipient, and Philippine calendar day. Failed sends remain retryable; paid/cancelled requests and requests with recorded payments are excluded. SMTP acceptance does not guarantee inbox delivery.
 
 Run php artisan migrate --force and rebuild frontend assets when deploying. The existing every-minute schedule:run cron job also runs the new daily task; no additional cron entry is needed.
+
+## Personal settings and notification permissions
+
+All active users can open Settings to update their name and change their password. Profile email is disabled for RSO, Accounting, Admin, and Finance, with changes rejected on the server. IT email changes require the current password. Password changes require the current password, a different confirmed password of at least 12 characters, and revoke other sessions, remembered sign-ins, and outstanding reset links while keeping the current session signed in.
+
+Notification-recipient settings are Admin-only, enforced on both read/write endpoints. Accounting, Finance, RSO, and IT see personal account settings. Admin has separate Notification recipients and My account tabs. Profile updates cannot change roles, account status, or another user's details.

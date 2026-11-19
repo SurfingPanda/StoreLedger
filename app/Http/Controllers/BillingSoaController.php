@@ -17,6 +17,7 @@ use App\Services\DuplicateBills;
 use App\Services\DirectoryLinks;
 use App\Services\TableSort;
 use App\Services\RequestRevisions;
+use App\Services\RequestComments;
 
 class BillingSoaController extends Controller
 {
@@ -120,7 +121,7 @@ class BillingSoaController extends Controller
             'comments_page' => ['nullable', 'integer', 'min:1'],
         ]);
         $history = TableSort::history(DirectoryLinks::history($billingSoa)->with(['creator', 'voucherActor', 'payment.recordedBy']), $request, 'due_date')
-            ->paginate(10, ['*'], 'history_page');
+            ->paginate($this->pageSize($request, 10, 'history_per_page'), ['*'], 'history_page');
         $history->through(function ($record) use ($request) {
             if ($record->payment) {
                 $record->payment->setAttribute('proof_url', route($request->route('module').'.payment-proof', $record));
@@ -134,23 +135,24 @@ class BillingSoaController extends Controller
         }
         return response()->json([
             'record' => array_merge($billingSoa->toArray(), ['attachment_url' => route($request->route('module').'.attachment', $billingSoa)]),
-            'revisions' => RequestRevisions::history($billingSoa),
+            'revisions' => RequestRevisions::history($billingSoa, $request),
             'revision_permissions' => RequestRevisions::permissions($request, $billingSoa),
             'duplicates' => DuplicateBills::matches($billingSoa),
             'history' => $history,
-            'comments' => $billingSoa->comments()->with('author')->orderByDesc('id')->paginate(20, ['*'], 'comments_page'),
+            'comments' => $billingSoa->comments()->with('author')->orderByDesc('id')->paginate(20, ['*'], 'comments_page')->through(fn ($comment) => RequestComments::present($comment, $billingSoa)),
         ]);
     }
 
     public function comment(Request $request, BillingSoa $billingSoa): JsonResponse
     {
         abort_unless($billingSoa->module === $request->route('module'), 404);
-        abort_unless(in_array($request->user()->role, ['accounting', 'finance'], true), 403);
-        $data = $request->validate(['body' => ['required', 'string', 'max:5000']]);
-        $comment = $billingSoa->comments()->make($data);
-        $comment->user_id = $request->user()->id;
-        $comment->save();
-        return response()->json(['message' => 'Comment added.', 'comment' => $comment->load('author')], 201);
+        return response()->json(RequestComments::create($request, $billingSoa), 201);
+    }
+
+    public function commentAttachment(Request $request, BillingSoa $billingSoa, int $commentId): StreamedResponse
+    {
+        abort_unless($billingSoa->module === $request->route('module'), 404);
+        return RequestComments::attachment($request, $billingSoa, $commentId);
     }
 
     public function voucherAction(Request $request, BillingSoa $billingSoa): JsonResponse

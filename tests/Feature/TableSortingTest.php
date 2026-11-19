@@ -37,6 +37,24 @@ class TableSortingTest extends TestCase
             }
         }
         $url = route($module.'.details', $record);
+        $this->getJson($url)->assertOk()->assertJsonPath('history.per_page', 10)->assertJsonPath('revisions.per_page', 10);
+        for ($event = 1; $event <= 12; $event++) {
+            \App\Models\RequestRevision::create(['module' => $module, 'request_id' => $record->id, 'user_id' => $admin->id,
+                'action' => 'metadata_corrected', 'reason' => 'Correction '.$event, 'before' => [], 'after' => []]);
+        }
+        $first = $this->getJson($url.'?history_per_page=5&history_sort=amount&history_direction=asc&history_page=2&revisions_per_page=10&revisions_page=2')
+            ->assertOk()->assertJsonCount(5, 'history.data')->assertJsonPath('history.last_page', 3)
+            ->assertJsonPath('history.from', 6)->assertJsonPath('history.to', 10)->assertJsonPath('history.data.0.amount', '6.00')
+            ->assertJsonCount(2, 'revisions.data')->assertJsonPath('revisions.last_page', 2)->assertJsonPath('revisions.from', 11)->assertJsonPath('revisions.to', 12);
+        $second = $this->getJson($url.'?history_per_page=25&revisions_per_page=5&revisions_page=2')
+            ->assertOk()->assertJsonCount(12, 'history.data')->assertJsonPath('history.last_page', 1)
+            ->assertJsonCount(5, 'revisions.data')->assertJsonPath('revisions.from', 6)->assertJsonPath('revisions.to', 10);
+        $this->assertEmpty(array_intersect(array_column($first->json('revisions.data'), 'id'), array_column($second->json('revisions.data'), 'id')));
+        foreach (['history_per_page', 'revisions_per_page'] as $parameter) {
+            foreach (['0', '101', '1.5', 'invalid'] as $size) {
+                $this->getJson($url.'?'.$parameter.'='.$size)->assertUnprocessable()->assertJsonValidationErrors($parameter);
+            }
+        }
         $this->getJson($url.'?history_sort=amount&history_direction=asc&history_page=2')->assertOk()
             ->assertJsonPath('history.total', 12)->assertJsonPath('history.data.0.amount', '11.00');
         $this->getJson($url.'?history_sort=amount&history_direction=desc')->assertOk()
