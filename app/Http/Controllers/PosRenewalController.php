@@ -120,6 +120,7 @@ class PosRenewalController extends Controller
         }
         return response()->json([
             'record' => $posRenewal,
+            'timeline' => \App\Services\RequestTimeline::history($posRenewal, $request),
             'revisions' => RequestRevisions::history($posRenewal, $request),
             'revision_permissions' => RequestRevisions::permissions($request, $posRenewal),
             'duplicates' => DuplicateBills::matches($posRenewal),

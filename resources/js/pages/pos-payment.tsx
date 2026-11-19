@@ -1,3 +1,4 @@
+import RequestStatus from '@/components/request-status';
 import { useRef, useState, type FormEvent } from 'react';
 import { CheckCircle2, CreditCard, LoaderCircle } from 'lucide-react';
 import AttachmentPreview from '@/components/attachment-preview';
@@ -36,7 +37,7 @@ export default function PosPayment({ payment, canPay, amount, base, disabled, on
     } finally { savingRef.current = false; setSaving(false); }
   }
   if (!payment && !canPay) return null;
-  return <section id="payment-panel" className={`register-panel payment-panel ${payment ? 'payment-panel-complete' : 'payment-panel-pending'}`}><div className="section-heading payment-panel-heading"><div className="payment-heading-content"><span className="payment-heading-icon">{payment ? <CheckCircle2 size={25} /> : <CreditCard size={25} />}</span><div><span className="payment-eyebrow">{payment ? 'PAYMENT COMPLETE' : 'FINANCE · ACTION REQUIRED'}</span><h2>{payment ? 'Payment recorded' : 'Record payment'}</h2><p>{payment ? 'This request is paid. Review the payment details or download the proof below.' : 'Enter the transaction details and upload proof, then save to mark this request as paid.'}</p></div></div><span className={`status-pill ${payment ? 'status-paid' : 'status-finance'}`}>{payment ? 'Paid' : 'Awaiting payment'}</span></div>
+  return <section id="payment-panel" className={`register-panel payment-panel ${payment ? 'payment-panel-complete' : 'payment-panel-pending'}`}><div className="section-heading payment-panel-heading"><div className="payment-heading-content"><span className="payment-heading-icon">{payment ? <CheckCircle2 size={25} /> : <CreditCard size={25} />}</span><div><span className="payment-eyebrow">{payment ? 'PAYMENT COMPLETE' : 'FINANCE · ACTION REQUIRED'}</span><h2>{payment ? 'Payment recorded' : 'Record payment'}</h2><p>{payment ? 'This request is paid. Review the payment details or download the proof below.' : 'Enter the transaction details and upload proof, then save to mark this request as paid.'}</p></div></div><RequestStatus status={payment ? 'paid' : 'vouchered'} /></div>
     {payment ? <><dl className="voucher-detail-fields">
       <div><dt>Amount paid</dt><dd>{money(payment.amount)}</dd></div><div><dt>Payment date</dt><dd>{new Date(`${payment.paid_on.slice(0, 10)}T12:00:00`).toLocaleDateString('en-PH', { dateStyle: 'medium' })}</dd></div>
       <div><dt>Payment method</dt><dd>{methods[payment.method] ?? payment.method}</dd></div><div><dt>Payment reference</dt><dd>{payment.reference}</dd></div>

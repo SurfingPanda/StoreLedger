@@ -135,6 +135,7 @@ class BillingSoaController extends Controller
         }
         return response()->json([
             'record' => array_merge($billingSoa->toArray(), ['attachment_url' => route($request->route('module').'.attachment', $billingSoa)]),
+            'timeline' => \App\Services\RequestTimeline::history($billingSoa, $request),
             'revisions' => RequestRevisions::history($billingSoa, $request),
             'revision_permissions' => RequestRevisions::permissions($request, $billingSoa),
             'duplicates' => DuplicateBills::matches($billingSoa),

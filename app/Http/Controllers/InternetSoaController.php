@@ -125,6 +125,7 @@ class InternetSoaController extends Controller
         }
         return response()->json([
             'record' => array_merge($internetSoa->toArray(), ['attachment_url' => route('internet-soa.attachment', $internetSoa)]),
+            'timeline' => \App\Services\RequestTimeline::history($internetSoa, $request),
             'revisions' => RequestRevisions::history($internetSoa, $request),
             'revision_permissions' => RequestRevisions::permissions($request, $internetSoa),
             'duplicates' => DuplicateBills::matches($internetSoa),

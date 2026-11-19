@@ -1,4 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import ResponsiveTable from '@/components/responsive-table';
+import { useTablePreference } from '@/lib/table-preferences';
+import { type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 
 export type Direction = 'asc' | 'desc';
@@ -6,8 +8,8 @@ type SortValue = string | number | boolean | null | undefined;
 const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
 
 export function useTableSort(initial = '', initialDirection: Direction = 'asc', onChange?: () => void) {
-  const [sort, setSort] = useState(initial);
-  const [direction, setDirection] = useState<Direction>(initialDirection);
+  const [sort, setSort] = useTablePreference('sort:' + initial, initial);
+  const [direction, setDirection] = useTablePreference<Direction>('direction:' + initial, initialDirection);
   function change(key: string) {
     setDirection(sort === key && direction === 'asc' ? 'desc' : 'asc');
     setSort(key);
@@ -37,7 +39,7 @@ export function useTableSort(initial = '', initialDirection: Direction = 'asc', 
 
 export function ChangeTable({ rows }: { rows: { field: string; before: string; after: string }[] }) {
   const sorting = useTableSort();
-  return <table className="ledger-table voucher-table"><thead><tr>{sorting.header('field', 'FIELD')}{sorting.header('before', 'BEFORE')}{sorting.header('after', 'AFTER')}</tr></thead>
+  return <ResponsiveTable className="ledger-table voucher-table"><thead><tr>{sorting.header('field', 'FIELD')}{sorting.header('before', 'BEFORE')}{sorting.header('after', 'AFTER')}</tr></thead>
     <tbody>{sorting.rows(rows, (row, key) => row[key as keyof typeof row]).map(row => <tr key={row.field}><td>{row.field}</td><td><pre>{row.before}</pre></td><td><pre>{row.after}</pre></td></tr>)}</tbody>
-  </table>;
+  </ResponsiveTable>;
 }

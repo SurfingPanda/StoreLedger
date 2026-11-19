@@ -45,7 +45,7 @@ class DashboardController extends Controller
         $data = $request->validate([
             'period' => ['sometimes', 'in:30,90,all'],
             'module' => ['sometimes', 'in:all,utak-pos,internet-soa,water,electricity,rental'],
-            'status' => ['sometimes', 'in:all,awaiting_soa,awaiting_voucher,needs_revision,vouchered,paid,cancelled'],
+            'status' => ['sometimes', 'in:all,outstanding,overdue,awaiting_soa,awaiting_voucher,needs_revision,vouchered,paid,cancelled'],
             'search' => ['nullable', 'string', 'max:150'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
@@ -70,7 +70,12 @@ class DashboardController extends Controller
         $breakdown = (clone $base)->where('status', '!=', 'cancelled')->selectRaw('module, COUNT(*) as total_count, SUM(amount) as amount')->groupBy('module')->get();
         $due = (clone $base)->whereIn('status', ['awaiting_soa', 'awaiting_voucher', 'needs_revision', 'vouchered'])->orderBy('due_date')->orderBy('module')->orderBy('id')->limit(5)->get()->map(fn ($row) => $this->present($row));
         $register = clone $base;
-        if (($data['status'] ?? 'all') !== 'all') $register->where('status', $data['status']);
+        if (in_array($data['status'] ?? 'all', ['outstanding', 'overdue'], true)) {
+            $register->whereIn('status', ['awaiting_soa', 'awaiting_voucher', 'needs_revision', 'vouchered']);
+            if ($data['status'] === 'overdue') $register->where('due_date', '<', $today);
+        } elseif (($data['status'] ?? 'all') !== 'all') {
+            $register->where('status', $data['status']);
+        }
         if (!empty($data['search'])) $register->where('store_name', 'like', '%'.addcslashes($data['search'], '%_\\').'%');
         TableSort::apply($register, $request, ['store_name' => 'store_name', 'module' => 'module', 'due_date' => 'due_date', 'amount' => 'amount', 'status' => 'status'], 'due_date', 'asc', '', ['module', 'id']);
         $records = $register->paginate($this->pageSize($request));

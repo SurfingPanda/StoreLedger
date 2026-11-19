@@ -86,6 +86,29 @@ class DashboardTest extends TestCase
         $this->getJson('/dashboard/records?page=0')->assertUnprocessable();
     }
 
+    public function test_summary_card_filters_match_outstanding_and_overdue_counts(): void
+    {
+        $this->record('water', 'awaiting_voucher', '100.00', -2);
+        $this->record('rental', 'vouchered', '200.00', -1);
+        $this->record('internet-soa', 'needs_revision', '50.00', 1);
+        $this->record('electricity', 'awaiting_soa', '75.00', 0);
+        $this->record('water', 'paid', '300.00', -2);
+        $this->record('water', 'cancelled', '400.00', -2);
+
+        $this->getJson('/dashboard/records?status=outstanding')->assertOk()
+            ->assertJsonPath('records.total', 4)
+            ->assertJsonPath('summary.outstanding_amount', '425.00');
+        $this->getJson('/dashboard/records?status=overdue')->assertOk()
+            ->assertJsonPath('records.total', 2)
+            ->assertJsonPath('summary.overdue_count', 2);
+        $this->getJson('/dashboard/records?status=overdue&module=water')->assertOk()
+            ->assertJsonPath('records.total', 1)
+            ->assertJsonPath('summary.overdue_count', 1);
+        $this->getJson('/dashboard/records?status=vouchered')->assertOk()
+            ->assertJsonPath('records.total', 1)
+            ->assertJsonPath('summary.awaiting_payment_count', 1);
+    }
+
     public function test_activity_shows_real_creation_voucher_cancellation_and_payment_events(): void
     {
         $this->record('utak-pos', 'awaiting_voucher', '100.00');
