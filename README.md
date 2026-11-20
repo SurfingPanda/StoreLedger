@@ -263,3 +263,32 @@ Run php artisan migrate --force and rebuild frontend assets when deploying. The 
 All active users can open Settings to update their name and change their password. Profile email is disabled for RSO, Accounting, Admin, and Finance, with changes rejected on the server. IT email changes require the current password. Password changes require the current password, a different confirmed password of at least 12 characters, and revoke other sessions, remembered sign-ins, and outstanding reset links while keeping the current session signed in.
 
 Notification-recipient settings are Admin-only, enforced on both read/write endpoints. Accounting, Finance, RSO, and IT see personal account settings. Admin has separate Notification recipients and My account tabs. Profile updates cannot change roles, account status, or another user's details.
+
+## Upload security scanning
+
+Every new SOA, revised/current statement, payment proof, and comment attachment is scanned **before** it enters private storage or changes a record. The existing type and size validation still applies. Malware detections, timeouts, missing scanners, and scanner errors reject the upload with a field error; they never fall back to accepting an unscanned file. This does not retroactively certify previously saved attachments.
+
+Windows uses the installed Microsoft Defender `MpCmdRun.exe` custom-file scan with remediation disabled, so the application can require a clean result. The executable is discovered from Defender's platform folders, or configured with `UPLOAD_SCAN_BINARY`. Keep Defender and its signatures updated. Check access under the actual PHP/web-server account with `php artisan security:check-upload-scanner`; do not run the web server as Administrator to work around a permissions failure. `UPLOAD_SCAN_TIMEOUT` defaults to 60 seconds. On Linux, select `UPLOAD_SCAN_DRIVER=clamd` and configure a local ClamAV daemon using `UPLOAD_CLAMD_ADDRESS` (default `tcp://127.0.0.1:3310`). Keep that endpoint private and its definitions current. No documents are sent to a public scanning service.
+
+The `testing` scanner is allowed only in the testing environment and is set by PHPUnit. It is rejected outside tests. Antivirus scanning reduces risk; a clean result is not a guarantee that a document is safe.
+
+## Encrypted backups on this computer
+
+`php artisan backup:initialize` creates a separate random recovery key at `.local/backup-recovery.key`, without printing or replacing it. `php artisan backup:run` creates an **AES-256 encrypted ZIP** containing a transaction-consistent MySQL/MariaDB dump (or a SQLite snapshot), all private attachments, and an encrypted SHA-256 manifest. Credentials, the recovery key, `.env`, and application code are excluded. ZIP entry names remain visible, but all file contents and the manifest are encrypted.
+
+The default archive folder is `storage/app/backups`. Temporary plaintext exports are under `.local/backup-work` and are removed in a `finally` block. Local Apache access is denied with `.htaccess`; production servers must still serve **only `public/`**. Restrict the backup folder, working folder, and recovery key to the backup process account using NTFS ACLs on Windows or owner-only permissions on Unix. The current computer has those NTFS restrictions applied to the backup folders and key. Keep the recovery key and original application configuration in a separate secure recovery location; losing the key makes these archives unrecoverable.
+
+Each backup is decrypted and every file hash verified before the archive is published. Only then are this app's archives older than `BACKUP_RETENTION_DAYS` (default 30) removed. Failed jobs retain previous backups. `--scheduled` skips a repeated run when a verified archive already exists for the day. Backups and failures appear in the Admin Automation health page.
+
+Laravel schedules `backup:run --scheduled` daily at `BACKUP_TIME=02:00`, in `BACKUP_TIMEZONE=Asia/Manila`. On this Windows computer, `scripts/install-backup-schedule.ps1` installs the separate `BW-Operations-Encrypted-Backups` Task Scheduler task, without enabling any email jobs. It runs at **02:00 Windows local time**, catches up after missed starts, retries failures three times 15 minutes apart, and runs hidden. The default limited-user task requires this Windows user to be logged in and MySQL to be running. Test it using Task Scheduler's Run action; exit code 0 indicates success. Optional `-RunWhenLoggedOut` installation requires an elevated PowerShell window and uses a local-only S4U task. If changing the scheduled time, update both the Windows task and Laravel configuration.
+
+Recovery and restore testing:
+
+```text
+php artisan backup:verify "storage/app/backups/<archive>.zip"
+php artisan backup:restore "storage/app/backups/<archive>.zip" --to=".local/restores/<new-folder>"
+```
+
+Restoration decrypts and verifies all files into a **new private directory** and refuses existing destinations, public/attachment storage, unsafe paths, or a wrong key. It does not overwrite live attachments or import into the live database. For a MySQL recovery drill, create a new disposable database, import `database/database.sql` using a matching MySQL/MariaDB client, compare important record counts, and open the restored attachments. Remove the disposable database and plaintext staging files afterwards. Only plan a live restore after this validation, with application writes stopped and a fresh safety backup. SQLite drills can open `database/database.sqlite` directly in an isolated SQLite connection.
+
+A real MySQL restore drill was completed on this computer with account data and billing/store record counts checked, without changing the live database. Automated tests also open restored SQLite snapshots, compare attachment bytes, and check wrong-key, tampering, path, overwrite, retention, and scanner-failure cases. Local backups protect against mistakes and corruption; copies kept solely on this computer do not survive loss of this computer or disk.

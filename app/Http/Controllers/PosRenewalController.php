@@ -64,7 +64,7 @@ class PosRenewalController extends Controller
             'proof' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]);
         $file = $request->file('proof');
-        $path = $file->store('pos-payment-proofs', 'local');
+        $path = \App\Services\SafeUploads::store($file, 'pos-payment-proofs', 'proof');
         abort_unless($path, 500, 'Could not save the proof of payment. Please try again.');
         try {
             DB::transaction(function () use ($request, $posRenewal, $data, $file, $path) {

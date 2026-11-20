@@ -30,10 +30,12 @@ class AutomationHealthController extends Controller
         $tasks = collect(AutomationMonitor::TASKS)->map(function ($definition, $command) use ($now) {
             $last = DB::table('automation_runs')->where('command', $command)->orderByDesc('id')->first();
             $success = DB::table('automation_runs')->where('command', $command)->where('status', 'succeeded')->orderByDesc('id')->value('finished_at');
-            $local = $now->setTimezone('Asia/Manila');
+            $local = $now->setTimezone($command === 'backup:run' ? config('backup.timezone') : 'Asia/Manila');
+            [$hour, $minute] = array_map('intval', explode(':', $command === 'backup:run' ? config('backup.time') : '09:00'));
+            if ($command === 'backup:run') $definition['frequency'] = 'Daily at '.config('backup.time').' '.config('backup.timezone');
             $expected = match ($definition['cadence']) {
                 'minute' => $local->startOfMinute(), 'hourly' => $local->startOfHour(),
-                default => $local->setTime(9, 0) > $local ? $local->subDay()->setTime(9, 0) : $local->setTime(9, 0),
+                default => $local->setTime($hour, $minute) > $local ? $local->subDay()->setTime($hour, $minute) : $local->setTime($hour, $minute),
             };
             $grace = $definition['cadence'] === 'minute' ? 3 : 10;
             $late = $local > $expected->addMinutes($grace) && (!$last || CarbonImmutable::parse($last->started_at) < $expected);
@@ -43,7 +45,7 @@ class AutomationHealthController extends Controller
             if ($definition['cadence'] === 'minute' && $last && CarbonImmutable::parse($last->started_at)->addMinutes(3) < $now && $status === 'healthy') $status = 'overdue';
             return $definition + ['command' => $command, 'health' => $status, 'last_run' => $last ? $this->runRow($last) : null,
                 'last_success_at' => $success ? CarbonImmutable::parse($success)->toIso8601String() : null,
-                'next_due_at' => (match ($definition['cadence']) { 'minute' => $local->startOfMinute()->addMinute(), 'hourly' => $local->startOfHour()->addHour(), default => $local < $local->setTime(9, 0) ? $local->setTime(9, 0) : $local->addDay()->setTime(9, 0) })->toIso8601String()];
+                'next_due_at' => (match ($definition['cadence']) { 'minute' => $local->startOfMinute()->addMinute(), 'hourly' => $local->startOfHour()->addHour(), default => $local < $local->setTime($hour, $minute) ? $local->setTime($hour, $minute) : $local->addDay()->setTime($hour, $minute) })->toIso8601String()];
         })->values();
         $runs = DB::table('automation_runs');
         if (($data['command'] ?? 'all') !== 'all') $runs->where('command', $data['command']);

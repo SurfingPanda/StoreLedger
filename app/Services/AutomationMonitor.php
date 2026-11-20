@@ -7,6 +7,7 @@ use Throwable;
 class AutomationMonitor
 {
     public const TASKS = [
+        'backup:run' => ['label' => 'Encrypted database & attachment backup', 'frequency' => 'Daily at 2:00 AM', 'cadence' => 'daily', 'timeout' => 120],
         'billing:send-overdue-reminders' => ['label' => 'Overdue bill reminders', 'frequency' => 'Daily at 9:00 AM', 'cadence' => 'daily', 'timeout' => 60],
         'pos:send-renewal-reminders' => ['label' => 'UTAK POS reminders', 'frequency' => 'Daily at 9:00 AM', 'cadence' => 'daily', 'timeout' => 60],
         'internet:send-soa-reminders' => ['label' => 'Internet SOA reminders', 'frequency' => 'Daily at 9:00 AM', 'cadence' => 'daily', 'timeout' => 60],

@@ -22,7 +22,7 @@ class RequestComments
             $comment = $record->comments()->make(['body' => $data['body'] ?? '']);
             $comment->user_id = $request->user()->id;
             if ($file = $request->file('attachment')) {
-                $path = $file->store('comment-attachments', 'local');
+                $path = \App\Services\SafeUploads::store($file, 'comment-attachments', 'attachment');
                 abort_unless($path, 500, 'Could not save the attachment. Please try again.');
                 $comment->attachment_path = $path;
                 $comment->attachment_name = mb_substr(basename(str_replace('\\', '/', $file->getClientOriginalName())), 0, 255);

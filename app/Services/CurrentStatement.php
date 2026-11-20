@@ -19,7 +19,7 @@ class CurrentStatement
             'soa' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]);
         $file = $request->file('soa');
-        $path = $file->store('recurring-soas', 'local');
+        $path = \App\Services\SafeUploads::store($file, 'recurring-soas', 'soa');
         abort_unless($path, 500, 'Could not store the SOA. Please try again.');
         try {
             DB::transaction(function () use ($request, $record, $data, $path, $file) {

@@ -77,7 +77,7 @@ class BillingSoaController extends Controller
             'proof' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]);
         $file = $request->file('proof');
-        $path = $file->store('billing-payment-proofs', 'local');
+        $path = \App\Services\SafeUploads::store($file, 'billing-payment-proofs', 'proof');
         abort_unless($path, 500, 'Could not save the proof of payment. Please try again.');
         try {
             DB::transaction(function () use ($request, $billingSoa, $data, $file, $path) {
@@ -254,7 +254,7 @@ class BillingSoaController extends Controller
             'soa' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]));
         $file = $request->file('soa');
-        $path = $file->store('billing-soas/'.$request->route('module'), 'local');
+        $path = \App\Services\SafeUploads::store($file, 'billing-soas/'.$request->route('module'), 'soa');
         abort_unless($path, 500, 'Could not save the SOA attachment. Please try again.');
         try {
             $record = new BillingSoa(collect($data)->except('soa')->all());

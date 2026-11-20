@@ -19,3 +19,6 @@ Schedule::command('billing:send-overdue-reminders')->dailyAt('09:00')
     ->timezone('Asia/Manila')->withoutOverlapping(60);
 
 Schedule::command('billing:generate-recurring')->hourly()->withoutOverlapping(60);
+
+Schedule::command('backup:run --scheduled')->dailyAt(config('backup.time'))
+    ->timezone(config('backup.timezone'))->withoutOverlapping(120);

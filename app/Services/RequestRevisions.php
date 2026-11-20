@@ -126,7 +126,7 @@ class RequestRevisions
                     $record->fill(collect($data)->except('soa')->all());
                     DirectoryLinks::assign($record);
                     if ($request->hasFile('soa') && RequestModule::key($record) !== 'utak-pos') {
-                        $file = $request->file('soa'); $path = $file->store('revised-soas', 'local');
+                        $file = $request->file('soa'); $path = \App\Services\SafeUploads::store($file, 'revised-soas', 'soa');
                         abort_unless($path, 500, 'Could not save the revised statement.');
                         $record->attachment_path = $path;
                         $record->attachment_name = mb_substr(basename(str_replace('\\', '/', $file->getClientOriginalName())), 0, 255);

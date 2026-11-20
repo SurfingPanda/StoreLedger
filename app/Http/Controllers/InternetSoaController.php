@@ -69,7 +69,7 @@ class InternetSoaController extends Controller
             'proof' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]);
         $file = $request->file('proof');
-        $path = $file->store('internet-payment-proofs', 'local');
+        $path = \App\Services\SafeUploads::store($file, 'internet-payment-proofs', 'proof');
         abort_unless($path, 500, 'Could not save the proof of payment. Please try again.');
         try {
             DB::transaction(function () use ($request, $internetSoa, $data, $file, $path) {
@@ -241,7 +241,7 @@ class InternetSoaController extends Controller
             'soa' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]));
         $file = $request->file('soa');
-        $path = $file->store('internet-soas', 'local');
+        $path = \App\Services\SafeUploads::store($file, 'internet-soas', 'soa');
         abort_unless($path, 500, 'Could not save the SOA attachment. Please try again.');
         try {
             $record = new InternetSoa(collect($data)->except('soa')->all());
