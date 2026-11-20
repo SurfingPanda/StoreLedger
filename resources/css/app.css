@@ -848,3 +848,13 @@ body.workspace-document>#app{width:100%;height:100%;min-height:0;overflow:hidden
 .real-dashboard .dashboard-register-search .register-search input::placeholder{color:#617697;opacity:1}
 .real-dashboard .dashboard-register-search>button{min-height:44px}
 @media(max-width:760px){.real-dashboard .dashboard-register-search{width:100%}.real-dashboard .dashboard-register-search .register-search{width:100%;min-width:0;flex:1 1 100%}.real-dashboard .dashboard-register-search .register-search input{font-size:16px}}
+
+/* Overdue requests retain their workflow status and carry a separate due-date alert. */
+.real-dashboard .dashboard-due-date{display:flex;align-items:flex-start;flex-direction:column;gap:7px}
+.real-dashboard .dashboard-due-date-overdue>span:first-child{color:#ae343e;font-weight:600}
+.real-dashboard .dashboard-overdue-badge{display:inline-flex;align-items:center;gap:5px;width:fit-content;border:1px solid #efbac0;border-radius:5px;padding:4px 7px;background:#ffe8eb;color:#a52b37;font-size:10px;font-weight:650;line-height:1.4;white-space:nowrap}
+.real-dashboard .dashboard-overdue-badge>svg{flex-shrink:0}
+.admin-shell .real-dashboard .ledger-table tbody tr.dashboard-overdue-row{background:#fff7f7}
+.admin-shell .real-dashboard .ledger-table tbody tr.dashboard-overdue-row:hover,.admin-shell .real-dashboard .ledger-table tbody tr.dashboard-overdue-row:focus-within{background:#ffedef}
+.real-dashboard .ledger-table .dashboard-overdue-row>td:first-child{box-shadow:inset 3px 0 #d65260}
+.real-dashboard .mobile-record-card.dashboard-overdue-row{background:#fff7f7;border-color:#efc8ce;box-shadow:inset 3px 0 #d65260}
