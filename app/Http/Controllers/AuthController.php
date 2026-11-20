@@ -30,6 +30,7 @@ class AuthController extends Controller
             'token' => $page === 'reset-password' ? (string) $request->route('token') : '',
             'user' => $request->user()?->only('name', 'email', 'role'),
             'urls' => [
+                'home' => route('home'),
                 'login' => route('login'),
                 'logout' => route('logout'),
                 'forgotPassword' => route('password.request'),

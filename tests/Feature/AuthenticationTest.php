@@ -22,7 +22,7 @@ class AuthenticationTest extends TestCase
 
     public function test_guests_can_open_login_and_recovery_pages(): void
     {
-        $this->get('/')->assertRedirect('/login');
+        $this->get('/')->assertOk()->assertViewHas('appData', fn ($data) => $data['page'] === 'landing' && $data['user'] === null && $data['urls']['login'] === route('login'));
         $this->get('/login')->assertOk()->assertSee('BW Superbakeshop')->assertSee('csrf-token');
         $this->get('/forgot-password')->assertOk();
         $this->get('/reset-password/token?email=person@example.com')->assertOk();
@@ -38,6 +38,7 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
         $this->get('/dashboard')->assertOk()->assertSee($user->email);
         $this->get('/login')->assertRedirect('/dashboard');
+        $this->get('/')->assertOk()->assertViewHas('appData', fn ($data) => $data['page'] === 'landing');
     }
 
     public function test_invalid_credentials_never_authenticate_a_user(): void

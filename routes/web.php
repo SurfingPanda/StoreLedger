@@ -14,7 +14,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', 'login');
+Route::get('/', fn (Request $request, AuthController $auth) => $auth->page($request, 'landing'))->name('home');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', fn (Request $request, AuthController $auth) => $auth->page($request))->name('login');

@@ -1,12 +1,12 @@
 export type AppData = {
   assets: { mascot: string; logo: string };
-  page: 'security-audit' | 'automation-health' | 'directory' | 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'pos-voucher' | 'internet-soa' | 'internet-voucher' | 'electricity' | 'rental' | 'water' | 'water-voucher' | 'electricity-voucher' | 'rental-voucher' | 'settings' | 'users';
+  page: 'landing' | 'security-audit' | 'automation-health' | 'directory' | 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'pos-voucher' | 'internet-soa' | 'internet-voucher' | 'electricity' | 'rental' | 'water' | 'water-voucher' | 'electricity-voucher' | 'rental-voucher' | 'settings' | 'users';
   renewalId?: number;
   email: string;
   loggedOut?: boolean;
   token: string;
   user: { name: string; email: string; role: string } | null;
-  urls: Record<'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'dashboardRecords' | 'dashboardActivity' | 'inbox' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'electricity' | 'electricityRecords' | 'rental' | 'rentalRecords' | 'water' | 'waterRecords' | 'settings' | 'notificationSettings' | 'users' | 'userRecords' | 'directory' | 'directoryRecords' | 'automationHealth' | 'automationHealthRecords' | 'securityAudit' | 'securityAuditRecords', string>;
+  urls: Record<'home' | 'login' | 'logout' | 'forgotPassword' | 'sendResetLink' | 'resetPassword' | 'dashboard' | 'dashboardRecords' | 'dashboardActivity' | 'inbox' | 'pos' | 'posRecords' | 'internetSoa' | 'internetSoaRecords' | 'electricity' | 'electricityRecords' | 'rental' | 'rentalRecords' | 'water' | 'waterRecords' | 'settings' | 'notificationSettings' | 'users' | 'userRecords' | 'directory' | 'directoryRecords' | 'automationHealth' | 'automationHealthRecords' | 'securityAudit' | 'securityAuditRecords', string>;
 };
 
 export type DuplicateBill = { id: number; store_name: string; provider: string | null; billing_period: string; amount: string; status: string; detail_url: string };
