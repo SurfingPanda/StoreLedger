@@ -243,7 +243,7 @@ class InternetSoaController extends Controller
             'amount' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:9999999999.99'],
             'due_date' => ['required', 'date_format:Y-m-d'],
             'soa' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
-            'purchase_request' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'purchase_request' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]));
         $file = $request->file('soa');
         $path = \App\Services\SafeUploads::store($file, 'internet-soas', 'soa');

@@ -17,7 +17,7 @@ type Props = {
 
 export default function CancelRequestDialog({ open, onOpenChange, storeName, recordLabel, amount, reason, onReasonChange, busy, error, onConfirm }: Props) {
   return <Dialog open={open} onOpenChange={value => { if (!busy) onOpenChange(value); }}>
-    <DialogContent className="cancel-request-dialog" onEscapeKeyDown={event => { if (busy) event.preventDefault(); }} onPointerDownOutside={event => { if (busy) event.preventDefault(); }}>
+    <DialogContent showClose={false} className="cancel-request-dialog" onEscapeKeyDown={event => { if (busy) event.preventDefault(); }} onPointerDownOutside={event => { if (busy) event.preventDefault(); }}>
       <header className="cancel-request-header">
         <span className="cancel-request-icon" aria-hidden="true"><CircleX size={25} /></span>
         <div><p className="cancel-request-eyebrow">REQUEST CANCELLATION</p><DialogTitle className="cancel-request-title">Cancel this request?</DialogTitle></div>

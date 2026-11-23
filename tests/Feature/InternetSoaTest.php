@@ -22,7 +22,8 @@ class InternetSoaTest extends TestCase
     private function payload(): array
     {
         return ['store_name' => 'BW Makati', 'amount' => '1899.50', 'due_date' => '2026-12-15',
-            'soa' => UploadedFile::fake()->create('internet-soa.pdf', 20, 'application/pdf')];
+            'soa' => UploadedFile::fake()->create('internet-soa.pdf', 20, 'application/pdf'),
+            'purchase_request' => UploadedFile::fake()->create('purchase-request.pdf', 20, 'application/pdf')];
     }
 
     public function test_admin_can_save_list_and_download_an_soa(): void
@@ -60,14 +61,10 @@ class InternetSoaTest extends TestCase
     public function test_purchase_request_is_uploaded_and_available_from_the_internet_soa_details(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));
-        $this->postJson('/internet-soa/records', $this->payload() + [
-            'purchase_request' => UploadedFile::fake()->create('invalid.txt', 1, 'text/plain'),
-        ])->assertUnprocessable()->assertJsonValidationErrors('purchase_request');
+        $this->postJson('/internet-soa/records', array_replace($this->payload(), ['purchase_request' => UploadedFile::fake()->create('invalid.txt', 1, 'text/plain')]))->assertUnprocessable()->assertJsonValidationErrors('purchase_request');
         $this->assertSame([], Storage::disk('local')->allFiles());
 
-        $this->postJson('/internet-soa/records', $this->payload() + [
-            'purchase_request' => UploadedFile::fake()->create('purchase-request.pdf', 20, 'application/pdf'),
-        ])->assertCreated();
+        $this->postJson('/internet-soa/records', $this->payload())->assertCreated();
         $record = InternetSoa::firstOrFail();
         Storage::disk('local')->assertExists($record->purchase_request_path);
         $url = route('internet-soa.purchase-request', $record);
@@ -83,7 +80,7 @@ class InternetSoaTest extends TestCase
     public function test_invalid_billing_details_and_attachments_are_rejected(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));
-        $this->postJson('/internet-soa/records', [])->assertUnprocessable()->assertJsonValidationErrors(['store_name', 'amount', 'due_date', 'soa']);
+        $this->postJson('/internet-soa/records', [])->assertUnprocessable()->assertJsonValidationErrors(['store_name', 'amount', 'due_date', 'soa', 'purchase_request']);
         foreach (['0', '-1', '1.234', '10000000000'] as $amount) {
             $this->post('/internet-soa/records', array_replace($this->payload(), ['amount' => $amount]), ['Accept' => 'application/json'])
                 ->assertUnprocessable()->assertJsonValidationErrors('amount');

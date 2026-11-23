@@ -25,6 +25,13 @@ class AuthController extends Controller
             'assets' => [
                 'mascot' => asset('images/Full Moymoy 2.png'),
                 'logo' => asset('images/logo.png'),
+                'directoryModalSheet' => asset('front_end_image/Billing Modal UI Asset Sheet.png'),
+                'directoryDashboardSheet' => asset('front_end_image/Stores & Suppliers UI Asset Sheet.png'),
+                'rentalIllustration' => asset('front_end_image/Financial Rental SOA Illustration.png'),
+                'electricityIllustration' => asset('front_end_image/Smart Energy Checklist Banner.png'),
+                'waterIllustration' => asset('front_end_image/Water SOA Faucet and Meter Waves.png'),
+                'posIllustration' => asset('front_end_image/UTAK POS Tech Banner.png'),
+                'internetIllustration' => asset('front_end_image/Connected Finance_ Wi‑Fi, SOA, and Digital Networking.png'),
             ],
             'email' => $page === 'reset-password' ? (string) $request->query('email', '') : '',
             'token' => $page === 'reset-password' ? (string) $request->route('token') : '',

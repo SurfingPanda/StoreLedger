@@ -1,5 +1,5 @@
 export type AppData = {
-  assets: { mascot: string; logo: string };
+  assets: { mascot: string; logo: string; directoryModalSheet: string; directoryDashboardSheet: string; rentalIllustration: string; electricityIllustration: string; waterIllustration: string; posIllustration: string; internetIllustration: string };
   page: 'landing' | 'security-audit' | 'automation-health' | 'directory' | 'login' | 'forgot-password' | 'reset-password' | 'dashboard' | 'utak-pos' | 'pos-voucher' | 'internet-soa' | 'internet-voucher' | 'electricity' | 'rental' | 'water' | 'water-voucher' | 'electricity-voucher' | 'rental-voucher' | 'settings' | 'users';
   renewalId?: number;
   email: string;
