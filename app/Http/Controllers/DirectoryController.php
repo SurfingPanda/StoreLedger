@@ -42,6 +42,7 @@ class DirectoryController extends Controller
             'suppliers' => ['name' => ['required', 'string', 'max:150'], 'email' => ['nullable', 'email', 'max:254'], 'phone' => ['nullable', 'string', 'max:60']],
             'accounts' => ['store_id' => ['required', 'integer', 'exists:stores,id'], 'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
                 'module' => ['required', Rule::in(array_keys(RequestModule::LABELS))], 'account_number' => ['nullable', 'string', 'max:100'],
+                'amount' => ['exclude_unless:module,internet-soa', 'nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],
                 'billing_cycle_months' => ['required', 'integer', 'in:1,3,6,12']],
         };
         $data = $request->validate(array_merge($rules, ['is_active' => ['required', 'boolean']]));
@@ -64,6 +65,9 @@ class DirectoryController extends Controller
             }
             if ($kind === 'accounts') {
                 $data['account_number'] = trim($data['account_number'] ?? '') ?: null;
+                if ($data['module'] !== 'internet-soa') {
+                    $data['amount'] = null;
+                }
                 $key = hash('sha256', $data['store_id'].'|'.$data['supplier_id'].'|'.$data['module'].'|'.mb_strtolower($data['account_number'] ?? ''));
                 if (StoreBillingAccount::where('identity_key', $key)->when($id, fn ($q) => $q->whereKeyNot($id))->exists()) throw ValidationException::withMessages(['account_number' => 'This store already has this supplier account for the selected module.']);
                 if ($id && ($record->store_id != $data['store_id'] || $record->supplier_id != $data['supplier_id'] || $record->module !== $data['module'])) {

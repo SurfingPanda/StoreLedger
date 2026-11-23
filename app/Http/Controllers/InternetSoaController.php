@@ -18,6 +18,7 @@ use App\Services\DirectoryLinks;
 use App\Services\TableSort;
 use App\Services\RequestRevisions;
 use App\Services\RequestComments;
+use App\Services\PrivateAttachments;
 
 class InternetSoaController extends Controller
 {
@@ -124,7 +125,10 @@ class InternetSoaController extends Controller
             $internetSoa->payment->setAttribute('proof_url', route('internet-soa.payment-proof', $internetSoa));
         }
         return response()->json([
-            'record' => array_merge($internetSoa->toArray(), ['attachment_url' => route('internet-soa.attachment', $internetSoa)]),
+            'record' => array_merge($internetSoa->toArray(), [
+                'attachment_url' => route('internet-soa.attachment', $internetSoa),
+                'purchase_request_url' => $internetSoa->purchase_request_path ? route('internet-soa.purchase-request', $internetSoa) : null,
+            ]),
             'timeline' => \App\Services\RequestTimeline::history($internetSoa, $request),
             'revisions' => RequestRevisions::history($internetSoa, $request),
             'revision_permissions' => RequestRevisions::permissions($request, $internetSoa),
@@ -239,14 +243,22 @@ class InternetSoaController extends Controller
             'amount' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:9999999999.99'],
             'due_date' => ['required', 'date_format:Y-m-d'],
             'soa' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'purchase_request' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]));
         $file = $request->file('soa');
         $path = \App\Services\SafeUploads::store($file, 'internet-soas', 'soa');
         abort_unless($path, 500, 'Could not save the SOA attachment. Please try again.');
+        $purchaseRequestPath = null;
         try {
-            $record = new InternetSoa(collect($data)->except('soa')->all());
+            $record = new InternetSoa(collect($data)->except(['soa', 'purchase_request'])->all());
             $record->attachment_path = $path;
             $record->attachment_name = mb_substr(basename(str_replace('\\', '/', $file->getClientOriginalName())), 0, 255);
+            if ($purchaseRequest = $request->file('purchase_request')) {
+                $purchaseRequestPath = $purchaseRequest->store('internet-purchase-requests', 'local');
+                abort_unless($purchaseRequestPath, 500, 'Could not save the purchase request. Please try again.');
+                $record->purchase_request_path = $purchaseRequestPath;
+                $record->purchase_request_name = mb_substr(basename(str_replace('\\', '/', $purchaseRequest->getClientOriginalName())), 0, 255);
+            }
             $record->status = 'awaiting_voucher';
             $record->created_by = $request->user()->id;
             DB::transaction(function () use ($record) {
@@ -256,10 +268,16 @@ class InternetSoaController extends Controller
                 $record->save();
             });
         } catch (Throwable $error) {
-            Storage::disk('local')->delete($path);
+            Storage::disk('local')->delete($purchaseRequestPath ? [$path, $purchaseRequestPath] : [$path]);
             throw $error;
         }
         return response()->json(['message' => 'Internet SOA saved and queued for Accounting voucher processing.'], 201);
+    }
+
+    public function purchaseRequest(Request $request, InternetSoa $internetSoa): StreamedResponse
+    {
+        abort_unless($internetSoa->purchase_request_path, 404);
+        return PrivateAttachments::respond($request, $internetSoa->purchase_request_path, $internetSoa->purchase_request_name);
     }
 
     public function attachment(Request $request, InternetSoa $internetSoa): StreamedResponse

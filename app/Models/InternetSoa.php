@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class InternetSoa extends Model
 {
-    protected $hidden = ['attachment_path'];
+    protected $hidden = ['attachment_path', 'purchase_request_path'];
 
     protected $fillable = ['store_id', 'billing_account_id', 'provider', 'billing_period', 'store_name', 'due_date', 'amount'];
 

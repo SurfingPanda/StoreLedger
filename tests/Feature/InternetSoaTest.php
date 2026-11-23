@@ -57,6 +57,29 @@ class InternetSoaTest extends TestCase
         $this->assertSame([], Storage::disk('local')->allFiles());
     }
 
+    public function test_purchase_request_is_uploaded_and_available_from_the_internet_soa_details(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $this->postJson('/internet-soa/records', $this->payload() + [
+            'purchase_request' => UploadedFile::fake()->create('invalid.txt', 1, 'text/plain'),
+        ])->assertUnprocessable()->assertJsonValidationErrors('purchase_request');
+        $this->assertSame([], Storage::disk('local')->allFiles());
+
+        $this->postJson('/internet-soa/records', $this->payload() + [
+            'purchase_request' => UploadedFile::fake()->create('purchase-request.pdf', 20, 'application/pdf'),
+        ])->assertCreated();
+        $record = InternetSoa::firstOrFail();
+        Storage::disk('local')->assertExists($record->purchase_request_path);
+        $url = route('internet-soa.purchase-request', $record);
+
+        $this->actingAs(User::factory()->create(['role' => 'accounting']))
+            ->getJson(route('internet-soa.details', $record))->assertOk()
+            ->assertJsonPath('record.purchase_request_name', 'purchase-request.pdf')
+            ->assertJsonPath('record.purchase_request_url', $url)
+            ->assertJsonMissingPath('record.purchase_request_path');
+        $this->get($url)->assertOk()->assertDownload('purchase-request.pdf');
+    }
+
     public function test_invalid_billing_details_and_attachments_are_rejected(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));

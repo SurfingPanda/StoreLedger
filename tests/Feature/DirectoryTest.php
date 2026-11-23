@@ -60,6 +60,22 @@ class DirectoryTest extends TestCase
         $this->withoutVite()->get('/directory')->assertOk()->assertViewHas('appData', fn ($data) => $data['page'] === 'directory');
     }
 
+    public function test_billing_account_amount_is_saved_only_for_internet(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $account = $this->account('internet-soa');
+        $url = '/directory/accounts/'.$account->id;
+        $payload = $account->only(['store_id', 'supplier_id', 'module', 'account_number', 'billing_cycle_months', 'is_active']);
+
+        $this->postJson($url, $payload + ['amount' => '1299.999'])->assertJsonValidationErrors('amount');
+        $this->postJson($url, $payload + ['amount' => '1299.50'])->assertOk();
+        $this->getJson('/directory/records')->assertJsonPath('accounts.0.amount', '1299.50');
+
+        $payload['module'] = 'water';
+        $this->postJson($url, $payload + ['amount' => '1299.50'])->assertOk();
+        $this->getJson('/directory/records')->assertJsonPath('accounts.0.amount', null);
+    }
+
     public function test_store_ownership_is_saved_updated_validated_and_returned(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));

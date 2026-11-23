@@ -100,6 +100,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/internet-soa/records/{internetSoa}/payment', [InternetSoaController::class, 'payment'])->name('internet-soa.payment');
     Route::get('/internet-soa/records/{internetSoa}/payment-proof', [InternetSoaController::class, 'paymentProof'])->name('internet-soa.payment-proof');
     Route::get('/internet-soa/{internetSoa}/attachment', [InternetSoaController::class, 'attachment'])->name('internet-soa.attachment');
+    Route::get('/internet-soa/{internetSoa}/purchase-request', [InternetSoaController::class, 'purchaseRequest'])->name('internet-soa.purchase-request');
     Route::get('/settings', function (Request $request, AuthController $auth) {
         return $auth->page($request, 'settings');
     })->name('settings');
